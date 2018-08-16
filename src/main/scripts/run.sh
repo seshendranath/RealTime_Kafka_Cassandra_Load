@@ -5,7 +5,7 @@ spark-submit \
 --master yarn \
 --deploy-mode client \
 --driver-memory=10G \
---num-executors=1 \
---executor-cores=3 \
---executor-memory=2G \
+--num-executors=2 \
+--executor-cores=1 \
+--executor-memory=5G \
 RealTime_Load-assembly-1.0-SNAPSHOT.jar -e=prod

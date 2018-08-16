@@ -32,7 +32,7 @@ class AutoGenerateScalaCode {
     // Generates JSON Schema
     val jSchema: String =
       s"""
-         |object TblADCaccounts_salesrep_commissions {
+         |object ${table.capitalize} {
          |  val jsonSchema = StructType(Array(
          |          StructField("database", StringType),
          |          StructField("table", StringType),

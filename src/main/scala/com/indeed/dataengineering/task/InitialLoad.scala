@@ -15,7 +15,6 @@ class InitialLoad {
     val session = cluster.connect(conf("cassandra.keyspace"))
 
     spark.conf.set("spark.cassandra.connection.host", conf("cassandra.host"))
-    spark.conf.set("spark.cassandra.output.consistency.level", "LOCAL_ONE")
 
     val db = conf("db")
     val table = conf("table")

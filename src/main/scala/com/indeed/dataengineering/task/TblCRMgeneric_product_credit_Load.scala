@@ -48,49 +48,48 @@ class TblCRMgeneric_product_credit_Load {
 
       def process(value: TblCRMgeneric_product_credit): Unit = {
 
-        // def intBool(i: Any): Any = if (i==null) null else if (i==0) false else true
+        def intBool(i: Any): Any = if (i == null) null else if (i == 0) false else true
 
         val statsQuery = "UPDATE stats.kafka_stream_stats SET records_processed = records_processed + 1 WHERE db = 'adcentraldb' and tbl = 'tblCRMgeneric_product_credit'"
 
-        if (value.opType == "insert" || value.opType == "update")
-        {
+        if (value.opType == "insert" || value.opType == "update") {
           val cQuery1 =
             s"""
                |INSERT INTO adcentraldb.tblCRMgeneric_product_credit (id,activity_date,advertiser_id,relationship,user_id,product_id,revenue_generic_product_millicents,revenue_generic_product_local,currency,invoice_request_id,rejected,date_added,date_modified)
                |VALUES (
                | ${value.id}
-               |,${if (value.activity_date == null) null else "'" + value.activity_date+ "'"}
+               |,${if (value.activity_date == null) null else "'" + value.activity_date + "'"}
                |,${value.advertiser_id.orNull}
-               |,${if (value.relationship == null) null else "'" + value.relationship.replaceAll("'", "''")+ "'"}
+               |,${if (value.relationship == null) null else "'" + value.relationship.replaceAll("'", "''") + "'"}
                |,${value.user_id.orNull}
                |,${value.product_id.orNull}
                |,${value.revenue_generic_product_millicents.orNull}
                |,${value.revenue_generic_product_local.orNull}
-               |,${if (value.currency == null) null else "'" + value.currency.replaceAll("'", "''")+ "'"}
+               |,${if (value.currency == null) null else "'" + value.currency.replaceAll("'", "''") + "'"}
                |,${value.invoice_request_id.orNull}
-               |,${value.rejected.orNull}
-               |,${if (value.date_added == null) null else "'" + value.date_added+ "'"}
-               |,${if (value.date_modified == null) null else "'" + value.date_modified+ "'"}
+               |,${intBool(value.rejected.orNull)}
+               |,${if (value.date_added == null) null else "'" + value.date_added + "'"}
+               |,${if (value.date_modified == null) null else "'" + value.date_modified + "'"}
                |)
              """.stripMargin
-          connector.withSessionDo{session =>
+          connector.withSessionDo { session =>
             session.execute(cQuery1)
             session.execute(statsQuery)
           }
         }
-        else if (value.opType == "delete")
-        {
+        else if (value.opType == "delete") {
           val cQuery1 =
             s"""
                |DELETE FROM adcentraldb.tblCRMgeneric_product_credit
                |WHERE id = ${value.id}
              """.stripMargin
-          connector.withSessionDo{session =>
+          connector.withSessionDo { session =>
             session.execute(cQuery1)
             session.execute(statsQuery)
           }
         }
       }
+
       def close(errorOrNull: Throwable): Unit = {}
     }
 

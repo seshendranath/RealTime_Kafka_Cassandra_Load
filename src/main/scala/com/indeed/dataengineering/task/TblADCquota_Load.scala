@@ -10,6 +10,7 @@ import com.indeed.dataengineering.AnalyticsTaskApp._
 import org.apache.spark.sql._
 import com.indeed.dataengineering.models._
 import com.datastax.spark.connector.cql.CassandraConnector
+import org.apache.hadoop.fs.Path
 import org.apache.spark.sql.functions.{log => _, _}
 
 
@@ -18,6 +19,8 @@ class TblADCquota_Load {
   def run(): Unit = {
 
     import spark.implicits._
+
+    val checkpointDir = "/tmp/checkpoint/tblADCquota"
 
     val Array(brokers, topics) = Array(conf("kafka.brokers"), conf("kafka.topic"))
     log.info(s"Initialized the Kafka brokers and topics to $brokers and $topics")
@@ -96,8 +99,11 @@ class TblADCquota_Load {
 
     if (conf.getOrElse("debug", "false") == "true") tblADCquota.as[TblADCquota].writeStream.format("console").outputMode(conf.getOrElse("outputMode", "update")).start()
 
+    log.info("Cleanup Checkpoint Dir")
+    if (dfs.exists(new Path(checkpointDir))) dfc.delete(new Path(checkpointDir), true)
+
     log.info("Write Streams to Cassandra Table")
-    tblADCquota.as[TblADCquota].writeStream.foreach(tblADCquotaWriter).outputMode("append").start
+    tblADCquota.as[TblADCquota].writeStream.option("checkpointLocation", checkpointDir).foreach(tblADCquotaWriter).outputMode("append").start
 
 
     log.info("Await Any Stream Query Termination")

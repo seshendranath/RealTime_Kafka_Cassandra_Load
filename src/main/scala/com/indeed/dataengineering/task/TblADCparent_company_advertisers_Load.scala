@@ -10,6 +10,7 @@ import com.indeed.dataengineering.AnalyticsTaskApp._
 import org.apache.spark.sql._
 import com.indeed.dataengineering.models._
 import com.datastax.spark.connector.cql.CassandraConnector
+import org.apache.hadoop.fs.Path
 import org.apache.spark.sql.functions.{log => _, _}
 
 
@@ -18,6 +19,8 @@ class TblADCparent_company_advertisers_Load {
   def run(): Unit = {
 
     import spark.implicits._
+
+    val checkpointDir = "/tmp/checkpoint/tblADCparent_company_advertisers"
 
     val Array(brokers, topics) = Array(conf("kafka.brokers"), conf("kafka.topic"))
     log.info(s"Initialized the Kafka brokers and topics to $brokers and $topics")
@@ -90,8 +93,11 @@ class TblADCparent_company_advertisers_Load {
 
     if (conf.getOrElse("debug", "false") == "true") tblADCparent_company_advertisers.as[TblADCparent_company_advertisers].writeStream.format("console").outputMode(conf.getOrElse("outputMode", "update")).start()
 
+    log.info("Cleanup Checkpoint Dir")
+    if (dfs.exists(new Path(checkpointDir))) dfc.delete(new Path(checkpointDir), true)
+
     log.info("Write Streams to Cassandra Table")
-    tblADCparent_company_advertisers.as[TblADCparent_company_advertisers].writeStream.foreach(tblADCparent_company_advertisersWriter).outputMode("append").start
+    tblADCparent_company_advertisers.as[TblADCparent_company_advertisers].writeStream.option("checkpointLocation", checkpointDir).foreach(tblADCparent_company_advertisersWriter).outputMode("append").start
 
 
     log.info("Await Any Stream Query Termination")

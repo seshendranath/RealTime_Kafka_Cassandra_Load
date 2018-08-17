@@ -16,7 +16,7 @@ case class TblCRMgeneric_product_credit(
                                          , revenue_generic_product_local: Option[BigInt]
                                          , currency: String
                                          , invoice_request_id: Option[BigInt]
-                                         , rejected: Option[Boolean]
+                                         , rejected: Option[Int]
                                          , date_added: Timestamp
                                          , date_modified: Timestamp
                                        )
@@ -42,7 +42,7 @@ object TblCRMgeneric_product_credit {
       , StructField("revenue_generic_product_local", LongType)
       , StructField("currency", StringType)
       , StructField("invoice_request_id", LongType)
-      , StructField("rejected", BooleanType)
+      , StructField("rejected", IntegerType)
       , StructField("date_added", TimestampType)
       , StructField("date_modified", TimestampType)))),
     StructField("old", StructType(Array(
@@ -56,7 +56,7 @@ object TblCRMgeneric_product_credit {
       , StructField("revenue_generic_product_local", LongType)
       , StructField("currency", StringType)
       , StructField("invoice_request_id", LongType)
-      , StructField("rejected", BooleanType)
+      , StructField("rejected", IntegerType)
       , StructField("date_added", TimestampType)
       , StructField("date_modified", TimestampType))))
   ))

@@ -50,6 +50,8 @@ class TblADCparent_company_advertisers_Load {
 
         //  def intBool(i: Any): Any = if (i==null) null else if (i==0) false else true
 
+        val statsQuery = "UPDATE stats.kafka_stream_stats SET records_processed = records_processed + 1 WHERE db = 'adcentraldb' and tbl = 'tblADCparent_company_advertisers'"
+
         if (value.opType == "insert" || value.opType == "update") {
           val cQuery1 =
             s"""
@@ -63,7 +65,10 @@ class TblADCparent_company_advertisers_Load {
                |,${if (value.date_modified == null) null else "'" + value.date_modified + "'"}
                |)
              """.stripMargin
-          connector.withSessionDo { session => session.execute(cQuery1) }
+          connector.withSessionDo{session =>
+            session.execute(cQuery1)
+            session.execute(statsQuery)
+          }
         }
         else if (value.opType == "delete") {
           val cQuery1 =
@@ -72,7 +77,10 @@ class TblADCparent_company_advertisers_Load {
                |WHERE parent_company_id = ${value.parent_company_id}
                |AND advertiser_id = ${value.advertiser_id}
              """.stripMargin
-          connector.withSessionDo { session => session.execute(cQuery1) }
+          connector.withSessionDo{session =>
+            session.execute(cQuery1)
+            session.execute(statsQuery)
+          }
         }
       }
 

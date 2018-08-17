@@ -47,6 +47,8 @@ class TblADCaccounts_salesrep_commissions_Load {
 
       def process(value: TblADCaccounts_salesrep_commissions): Unit = {
 
+        val statsQuery = "UPDATE stats.kafka_stream_stats SET records_processed = records_processed + 1 WHERE db = 'adcentraldb' and tbl = 'tblADCaccounts_salesrep_commissions'"
+
         if (value.opType == "insert" || value.opType == "update") {
           val cQuery1 =
             s"""
@@ -79,7 +81,10 @@ class TblADCaccounts_salesrep_commissions_Load {
                |,${if (value.date_modified == null) null else "'" + value.date_modified + "'"}
                |)
              """.stripMargin
-          connector.withSessionDo { session => session.execute(cQuery1) }
+          connector.withSessionDo{session =>
+            session.execute(cQuery1)
+            session.execute(statsQuery)
+          }
         }
         else if (value.opType == "delete") {
           val cQuery1 =
@@ -88,7 +93,10 @@ class TblADCaccounts_salesrep_commissions_Load {
                |WHERE date = ${value.date}
                |AND advertiser_id = ${value.advertiser_id}
              """.stripMargin
-          connector.withSessionDo { session => session.execute(cQuery1) }
+          connector.withSessionDo{session =>
+            session.execute(cQuery1)
+            session.execute(statsQuery)
+          }
         }
       }
 

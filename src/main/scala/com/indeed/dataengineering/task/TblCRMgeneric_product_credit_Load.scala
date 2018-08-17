@@ -50,6 +50,8 @@ class TblCRMgeneric_product_credit_Load {
 
         // def intBool(i: Any): Any = if (i==null) null else if (i==0) false else true
 
+        val statsQuery = "UPDATE stats.kafka_stream_stats SET records_processed = records_processed + 1 WHERE db = 'adcentraldb' and tbl = 'tblCRMgeneric_product_credit'"
+
         if (value.opType == "insert" || value.opType == "update")
         {
           val cQuery1 =
@@ -71,7 +73,10 @@ class TblCRMgeneric_product_credit_Load {
                |,${if (value.date_modified == null) null else "'" + value.date_modified+ "'"}
                |)
              """.stripMargin
-          connector.withSessionDo{session =>session.execute(cQuery1)}
+          connector.withSessionDo{session =>
+            session.execute(cQuery1)
+            session.execute(statsQuery)
+          }
         }
         else if (value.opType == "delete")
         {
@@ -80,7 +85,10 @@ class TblCRMgeneric_product_credit_Load {
                |DELETE FROM adcentraldb.tblCRMgeneric_product_credit
                |WHERE id = ${value.id}
              """.stripMargin
-          connector.withSessionDo{session =>session.execute(cQuery1)}
+          connector.withSessionDo{session =>
+            session.execute(cQuery1)
+            session.execute(statsQuery)
+          }
         }
       }
       def close(errorOrNull: Throwable): Unit = {}

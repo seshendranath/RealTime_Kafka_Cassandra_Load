@@ -50,6 +50,8 @@ class TblADCquota_Load {
 
         //  def intBool(i: Any): Any = if (i==null) null else if (i==0) false else true
 
+        val statsQuery = "UPDATE stats.kafka_stream_stats SET records_processed = records_processed + 1 WHERE db = 'adcentraldb' and tbl = 'tblADCquota'"
+
         if (value.opType == "insert" || value.opType == "update") {
           val cQuery1 =
             s"""
@@ -67,7 +69,10 @@ class TblADCquota_Load {
                |,${value.edited_by.orNull}
                |)
              """.stripMargin
-          connector.withSessionDo { session => session.execute(cQuery1) }
+          connector.withSessionDo{session =>
+            session.execute(cQuery1)
+            session.execute(statsQuery)
+          }
         }
         else if (value.opType == "delete") {
           val cQuery1 =
@@ -78,7 +83,10 @@ class TblADCquota_Load {
                |AND user_id = ${value.user_id}
                |AND quota_type = ${value.quota_type}
              """.stripMargin
-          connector.withSessionDo { session => session.execute(cQuery1) }
+          connector.withSessionDo{session =>
+            session.execute(cQuery1)
+            session.execute(statsQuery)
+          }
         }
       }
 

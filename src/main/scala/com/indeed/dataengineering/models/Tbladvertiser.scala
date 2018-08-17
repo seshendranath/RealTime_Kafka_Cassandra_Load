@@ -34,7 +34,7 @@ case class Tbladvertiser(
                           , payment_method: String
                           , industry: String
                           , agency_discount: Option[BigDecimal]
-                          , is_ad_agency: Option[Boolean]
+                          , is_ad_agency: Option[Int]
                           , process_level: String
                           , estimated_budget: Option[BigDecimal]
                           , first_revenue_date: Date
@@ -89,7 +89,7 @@ object Tbladvertiser {
       , StructField("payment_method", StringType)
       , StructField("industry", StringType)
       , StructField("agency_discount", DecimalType(10, 3))
-      , StructField("is_ad_agency", BooleanType)
+      , StructField("is_ad_agency", IntegerType)
       , StructField("process_level", StringType)
       , StructField("estimated_budget", DecimalType(7, 2))
       , StructField("first_revenue_date", DateType)
@@ -132,7 +132,7 @@ object Tbladvertiser {
       , StructField("payment_method", StringType)
       , StructField("industry", StringType)
       , StructField("agency_discount", DecimalType(10, 3))
-      , StructField("is_ad_agency", BooleanType)
+      , StructField("is_ad_agency", IntegerType)
       , StructField("process_level", StringType)
       , StructField("estimated_budget", DecimalType(7, 2))
       , StructField("first_revenue_date", DateType)

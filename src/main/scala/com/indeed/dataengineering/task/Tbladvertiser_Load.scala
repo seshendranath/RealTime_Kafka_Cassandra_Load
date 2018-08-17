@@ -50,6 +50,8 @@ class Tbladvertiser_Load {
 
         def intBool(i: Any): Any = if (i==null) null else if (i==0) false else true
 
+        val statsQuery = "UPDATE stats.kafka_stream_stats SET records_processed = records_processed + 1 WHERE db = 'adsystemdb' and tbl = 'tbladvertiser'"
+
         if (value.opType == "insert" || value.opType == "update")
         {
           val cQuery1 =
@@ -100,7 +102,11 @@ class Tbladvertiser_Load {
                |,${if (value.last_updated == null) null else "'" + value.last_updated+ "'"}
                |)
              """.stripMargin
-          connector.withSessionDo{session =>session.execute(cQuery1)}
+
+          connector.withSessionDo{session =>
+            session.execute(cQuery1)
+            session.execute(statsQuery)
+          }
         }
         else if (value.opType == "delete")
         {
@@ -109,7 +115,10 @@ class Tbladvertiser_Load {
                |DELETE FROM adsystemdb.tbladvertiser
                |WHERE id = ${value.id}
              """.stripMargin
-          connector.withSessionDo{session =>session.execute(cQuery1)}
+          connector.withSessionDo{session =>
+            session.execute(cQuery1)
+            session.execute(statsQuery)
+          }
         }
       }
       def close(errorOrNull: Throwable): Unit = {}

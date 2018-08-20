@@ -10,7 +10,7 @@ import com.indeed.dataengineering.AnalyticsTaskApp._
 import org.apache.spark.sql._
 import com.indeed.dataengineering.models._
 import com.datastax.spark.connector.cql.CassandraConnector
-import org.apache.hadoop.fs.Path
+// import org.apache.hadoop.fs.Path
 import org.apache.spark.sql.functions.{log => _, _}
 
 
@@ -20,7 +20,7 @@ class Tbladvertiser_Load {
 
     import spark.implicits._
 
-    val checkpointDir = "/tmp/checkpoint/tbladvertiser"
+    val checkpointDir = "s3a://indeed-data/dev/realtime/tmp/checkpoint/tbladvertiser"
 
     val Array(brokers, topics) = Array(conf("kafka.brokers"), conf("kafka.topic"))
     log.info(s"Initialized the Kafka brokers and topics to $brokers and $topics")
@@ -33,7 +33,7 @@ class Tbladvertiser_Load {
       .readStream
       .format("kafka")
       .option("kafka.bootstrap.servers", brokers)
-      .option("subscribe", topics)
+      .option("subscribe", topics).option("failOnDataLoss", "false")
       .load()
     //.option("startingOffsets", s""" {"${conf("kafka.topic")}":{"0":-1}} """)
 
@@ -130,11 +130,15 @@ class Tbladvertiser_Load {
 
     if (conf.getOrElse("debug", "false") == "true") tbladvertiser.as[Tbladvertiser].writeStream.format("console").outputMode(conf.getOrElse("outputMode", "update")).start()
 
-    log.info("Cleanup Checkpoint Dir")
-    if (dfs.exists(new Path(checkpointDir))) dfc.delete(new Path(checkpointDir), true)
+    // log.info("Cleanup Checkpoint Dir")
+    // if (dfs.exists(new Path(checkpointDir))) dfc.delete(new Path(checkpointDir), true)
 
     log.info("Write Streams to Cassandra Table")
-    tbladvertiser.as[Tbladvertiser].writeStream.option("checkpointLocation", checkpointDir).foreach(tbladvertiserWriter).outputMode("append").start
+    if (conf.getOrElse("checkpoint", "false") == "true") {
+      tbladvertiser.as[Tbladvertiser].writeStream.option("checkpointLocation", checkpointDir).foreach(tbladvertiserWriter).outputMode("append").start
+    } else {
+      tbladvertiser.as[Tbladvertiser].writeStream.foreach(tbladvertiserWriter).outputMode("append").start
+    }
 
 
     log.info("Await Any Stream Query Termination")

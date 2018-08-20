@@ -12,7 +12,7 @@ crossPaths := false
 
 publishArtifact in(Compile, packageSrc) := true
 
-val sparkVersion = "2.3.0"
+val sparkVersion = "2.3.1"
 val kafkaVersion = "0.10.0.1"
 val awsVersion = "1.11.383"
 val jsonVersion = "3.6.0"

@@ -10,7 +10,7 @@ import com.indeed.dataengineering.AnalyticsTaskApp._
 import org.apache.spark.sql._
 import com.indeed.dataengineering.models._
 import com.datastax.spark.connector.cql.CassandraConnector
-import org.apache.hadoop.fs.Path
+// import org.apache.hadoop.fs.Path
 import org.apache.spark.sql.functions.{log => _, _}
 
 
@@ -20,7 +20,7 @@ class TblADScurrency_rates_Load {
 
     import spark.implicits._
 
-    val checkpointDir = "/tmp/checkpoint/tblADScurrency_rates"
+    val checkpointDir = "s3a://indeed-data/dev/realtime/tmp/checkpoint/tblADScurrency_rates"
 
     val Array(brokers, topics) = Array(conf("kafka.brokers"), conf("kafka.topic"))
     log.info(s"Initialized the Kafka brokers and topics to $brokers and $topics")
@@ -33,7 +33,7 @@ class TblADScurrency_rates_Load {
       .readStream
       .format("kafka")
       .option("kafka.bootstrap.servers", brokers)
-      .option("subscribe", topics)
+      .option("subscribe", topics).option("failOnDataLoss", "false")
       .load()
     //.option("startingOffsets", s""" {"${conf("kafka.topic")}":{"0":-1}} """)
 
@@ -96,11 +96,15 @@ class TblADScurrency_rates_Load {
 
     if (conf.getOrElse("debug", "false") == "true") tblADScurrency_rates.as[TblADScurrency_rates].writeStream.format("console").outputMode(conf.getOrElse("outputMode", "update")).start()
 
-    log.info("Cleanup Checkpoint Dir")
-    if (dfs.exists(new Path(checkpointDir))) dfc.delete(new Path(checkpointDir), true)
+    // log.info("Cleanup Checkpoint Dir")
+    // if (dfs.exists(new Path(checkpointDir))) dfc.delete(new Path(checkpointDir), true)
 
     log.info("Write Streams to Cassandra Table")
-    tblADScurrency_rates.as[TblADScurrency_rates].writeStream.option("checkpointLocation", checkpointDir).foreach(tblADScurrency_ratesWriter).outputMode("append").start
+    if (conf.getOrElse("checkpoint", "false") == "true") {
+      tblADScurrency_rates.as[TblADScurrency_rates].writeStream.option("checkpointLocation", checkpointDir).foreach(tblADScurrency_ratesWriter).outputMode("append").start
+    } else {
+      tblADScurrency_rates.as[TblADScurrency_rates].writeStream.foreach(tblADScurrency_ratesWriter).outputMode("append").start
+    }
 
 
     log.info("Await Any Stream Query Termination")

@@ -25,14 +25,12 @@ spark-submit \
 --num-executors=${ne} \
 --executor-cores=${ec} \
 --executor-memory=${em}g \
---conf "hive.exec.dynamic.partition=true" \
---conf "hive.exec.dynamic.partition.mode=nonstrict" \
+--files ~/log4j-spark.properties \
 --conf "mapreduce.fileoutputcommitter.algorithm.version=2" \
 --conf "fs.s3a.fast.upload=true" \
 --conf "spark.sql.parquet.writeLegacyFormat=true" \
---conf "spark.sql.crossJoin.enabled=true" \
 --conf "dfs.block.size=1024m" \
---conf "spark.sql.shuffle.partitions=2" \
+--conf "spark.sql.shuffle.partitions=1" \
 --conf "spark.cassandra.output.consistency.level=LOCAL_ONE" \
 --conf "spark.dynamicAllocation.enabled=false" \
 --conf "spark.eventLog.enabled=false" \
@@ -43,16 +41,20 @@ spark-submit \
 --conf "spark.ui.retainedStages=10" \
 --conf "spark.worker.ui.retainedExecutors=10" \
 --conf "spark.worker.ui.retainedDrivers=10" \
+--conf "spark.sql.ui.retainedExecutions=10" \
+--conf "spark.hadoop.fs.hdfs.impl.disable.cache=true" \
 --conf "spark.serializer=org.apache.spark.serializer.KryoSerializer" \
 --conf "spark.yarn.driver.memoryOverhead=1024" \
 --conf "spark.yarn.executor.memoryOverhead=1024" \
 --conf "spark.worker.cleanup.enabled=true" \
 --conf "spark.ui.showConsoleProgress=false" \
 --conf "spark.yarn.am.extraJavaOptions=-XX:+UseG1GC -XX:MaxGCPauseMillis=300 -XX:InitiatingHeapOccupancyPercent=50  -XX:G1ReservePercent=20 -XX:+DisableExplicitGC" \
---conf "spark.driver.extraJavaOptions=-XX:+UseG1GC -XX:MaxGCPauseMillis=300 -XX:InitiatingHeapOccupancyPercent=50  -XX:G1ReservePercent=20 -XX:+DisableExplicitGC" \
---conf "spark.executor.extraJavaOptions=-XX:+UseG1GC -XX:MaxGCPauseMillis=300 -XX:InitiatingHeapOccupancyPercent=50  -XX:G1ReservePercent=20 -XX:+DisableExplicitGC" \
+--conf "spark.driver.extraJavaOptions=-XX:+UseG1GC -XX:MaxGCPauseMillis=300 -XX:InitiatingHeapOccupancyPercent=50  -XX:G1ReservePercent=20 -XX:+DisableExplicitGC -Dlog4j.configuration=log4j-spark.properties" \
+--conf "spark.executor.extraJavaOptions=-XX:+UseG1GC -XX:MaxGCPauseMillis=300 -XX:InitiatingHeapOccupancyPercent=50  -XX:G1ReservePercent=20 -XX:+DisableExplicitGC -Dlog4j.configuration=log4j-spark.properties" \
 --conf "spark.executor.heartbeatInterval=360000" \
 --conf "spark.network.timeout=420000" \
+--conf "spark.cleaner.ttl=120" \
+--conf "spark.streaming.backpressure.enabled=true" \
 --supervise \
 RealTime_Load-assembly-1.0-SNAPSHOT.jar -e=prod --class=com.indeed.dataengineering.task.$cname
 

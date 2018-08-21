@@ -71,3 +71,13 @@ spark-submit \
 --executor-cores=1 \
 --executor-memory=5g \
 RealTime_Load-assembly-1.0-SNAPSHOT.jar -e=prod --db=$db --table=$tbl --pk=$pk
+
+
+#nohup sh run.sh Tbladvertiser_Load 2 6 1 4 client > Tbladvertiser_Load.log 2>&1 &
+#nohup sh run.sh TblADCaccounts_salesrep_commissions_Load 2 6 1 3 client > TblADCaccounts_salesrep_commissions_Load.log 2>&1 &
+#nohup sh run.sh TblADCadvertiser_rep_revenues_Load 2 6 1 4 client > TblADCadvertiser_rep_revenues_Load.log 2>&1 &
+#nohup sh run.sh TblCRMgeneric_product_credit_Load 2 2 1 1 client > TblCRMgeneric_product_credit_Load.log 2>&1 &
+#nohup sh run.sh TblADCparent_company_advertisers_Load 2 3 1 1 client > TblADCparent_company_advertisers_Load.log 2>&1 &
+#nohup sh run.sh TblADCparent_company_Load 2 3 1 1 client > TblADCparent_company_Load.log 2>&1 &
+#nohup sh run.sh TblADCquota_Load 2 2 1 1 client > TblADCquota_Load.log 2>&1 &
+#nohup sh run.sh TblADScurrency_rates_Load 2 2 1 1 client > TblADScurrency_rates_Load.log 2>&1 &

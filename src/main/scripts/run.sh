@@ -44,8 +44,6 @@ spark-submit \
 --conf "spark.sql.ui.retainedExecutions=10" \
 --conf "spark.hadoop.fs.hdfs.impl.disable.cache=true" \
 --conf "spark.serializer=org.apache.spark.serializer.KryoSerializer" \
---conf "spark.yarn.driver.memoryOverhead=1024" \
---conf "spark.yarn.executor.memoryOverhead=1024" \
 --conf "spark.worker.cleanup.enabled=true" \
 --conf "spark.ui.showConsoleProgress=false" \
 --conf "spark.yarn.am.extraJavaOptions=-XX:+UseG1GC -XX:MaxGCPauseMillis=300 -XX:InitiatingHeapOccupancyPercent=50  -XX:G1ReservePercent=20 -XX:+DisableExplicitGC" \

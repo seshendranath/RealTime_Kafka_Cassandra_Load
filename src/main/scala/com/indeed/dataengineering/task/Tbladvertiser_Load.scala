@@ -108,6 +108,7 @@ class Tbladvertiser_Load {
 
           connector.withSessionDo{session =>
             session.execute(cQuery1)
+            if (value.`type` == "Test") session.execute(s"INSERT INTO adsystemdb.testadvertiserids (id) VALUES (${value.id})")
             session.execute(statsQuery)
           }
         }

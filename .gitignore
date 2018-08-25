@@ -3,6 +3,7 @@
 *.log
 build.sbt_back
 
+.DS_Store
 # sbt specific
 dist/*
 target/

@@ -46,6 +46,7 @@ def gen_revenue_data(interval):
 
     rows = session.execute(query)
     df = rows._current_rows
+    df['total_revenue'] = int(df['total_revenue']/100000)
 
     return df.to_dict('records')
 

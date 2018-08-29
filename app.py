@@ -23,7 +23,7 @@ app.layout = html.Div([
 
     html.Div([
         dcc.Graph(id='qtd-revenue-composition'),
-        dcc.Interval(id='sales-revenue-update', interval=1000, n_intervals=0),
+        dcc.Interval(id='revenue-composition-update', interval=1000, n_intervals=0),
     ]),
 
 
@@ -38,7 +38,7 @@ app.layout = html.Div([
             selected_row_indices=[],
             id='datatable'
         ),
-        dcc.Interval(id='sales-revenue-update', interval=1000, n_intervals=0),
+        dcc.Interval(id='sales-rep-revenue-update', interval=3600000, n_intervals=0),
     ]),
 
     html.H4('Comment: The data shown above is calculated by performing ETL on real time streams of tblADCaccounts_salesrep_commissions, tblADCadvertiser_rep_revenues, tblCRMgeneric_product_credit, tbladvertiser, and tblADScurrency_rates.'),
@@ -56,18 +56,6 @@ session = cluster.connect()
 session.set_keyspace('adcentraldb')
 session.row_factory = pandas_factory
 session.default_fetch_size = 10000000 #needed for large queries, otherwise driver will do pagination. Default is 50000.
-
-
-@app.callback(Output('datatable', 'rows'), [Input('sales-revenue-update', 'n_intervals')])
-def gen_revenue_data(interval):
-    query = "SELECT year, quarter, user_id, quota, total_revenue FROM sales_revenue_quota_summary_by_user_quarter WHERE year = 2018 and quarter = 3  and user_id IN (1001, 1277, 1962, 10889, 4442)"
-
-    rows = session.execute(query)
-    df = rows._current_rows
-    df['total_revenue'] = (df['total_revenue']/100000).astype(int)
-    df['% Met'] = ((df['total_revenue']/df['quota'])*100).astype(float).round(2)
-
-    return df.to_dict('records')
 
 
 @app.callback(Output('qtd-revenue', 'figure'), [Input('sales-revenue-update', 'n_intervals')])
@@ -115,7 +103,7 @@ def gen_revenue_data(interval):
     return go.Figure(data=data, layout=layout)
 
 
-@app.callback(Output('qtd-revenue-composition', 'figure'), [Input('sales-revenue-update', 'n_intervals')])
+@app.callback(Output('qtd-revenue-composition', 'figure'), [Input('revenue-composition-update', 'n_intervals')])
 def gen_revenue_data(interval):
     query = "SELECT SUM(sales_revenue) AS sales_revenue, SUM(agency_revenue) AS agency_revenue, SUM(strategic_revenue) AS strategic_revenue, SUM(sales_new_revenue) AS sales_new_revenue FROM sales_revenue_summary_by_quarter WHERE year = 2018 and quarter = 3"
     rows = session.execute(query)
@@ -146,6 +134,18 @@ def gen_revenue_data(interval):
     )
 
     return go.Figure(data=data, layout=layout)
+
+
+@app.callback(Output('datatable', 'rows'), [Input('sales-rep-revenue-update', 'n_intervals')])
+def gen_revenue_data(interval):
+    query = "SELECT year, quarter, user_id, quota, total_revenue FROM sales_revenue_quota_summary_by_user_quarter WHERE year = 2018 and quarter = 3  and user_id IN (1001, 1277, 1962, 10889, 4442)"
+
+    rows = session.execute(query)
+    df = rows._current_rows
+    df['total_revenue'] = (df['total_revenue']/100000).astype(int)
+    df['% Met'] = ((df['total_revenue']/df['quota'])*100).astype(float).round(2)
+
+    return df.to_dict('records')
 
 if __name__ == '__main__':
     app.run_server(host='%s' %(sys.argv[1]))

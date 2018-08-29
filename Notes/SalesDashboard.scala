@@ -655,6 +655,8 @@ val sales_revenue_summary_by_user_quarter = sql(query)
 sales_revenue_summary_by_user_quarter.persist
 sales_revenue_summary_by_user_quarter.count
 sales_revenue_summary_by_user_quarter.createOrReplaceTempView("sales_revenue_summary_by_user_quarter")
+sql("SELECT SUM(sales_revenue) + SUM(agency_revenue) + SUM(strategic_revenue) + SUM(sales_new_revenue) AS total_revenue, SUM(sales_revenue), SUM(agency_revenue), SUM(strategic_revenue), SUM(sales_new_revenue) FROM sales_revenue_summary_by_user_quarter WHERE year = 2018 and quarter = 3").show(false)
+
 sales_revenue_summary_by_user_quarter.write.format("org.apache.spark.sql.cassandra").mode(SaveMode.Append).options(Map("table" -> "sales_revenue_summary_by_user_quarter", "keyspace" -> "adcentraldb")).save
 sales_revenue_summary_by_user_quarter.select("year", "quarter", "user_id", "total_revenue").write.format("org.apache.spark.sql.cassandra").mode(SaveMode.Append).options(Map("table" -> "sales_revenue_quota_summary_by_user_quarter", "keyspace" -> "adcentraldb")).save
 

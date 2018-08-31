@@ -16,7 +16,9 @@ nohup sh run.sh TblADCparent_company_Load 2 3 1 1 client > TblADCparent_company_
 nohup sh run.sh TblADCquota_Load 2 2 1 1 client > TblADCquota_Load.log 2>&1 &
 nohup sh run.sh TblADScurrency_rates_Load 2 2 1 1 client > TblADScurrency_rates_Load.log 2>&1 &
 
-nohup sh run.sh SalesSummary_Load 3 10 1 5 client > SalesSummary_Load.log 2>&1 &
+nohup sh run.sh SalesSummary_Load 3 10 1 5 client > ~/SalesSummary_Load.log 2>&1 &
+
+nohup sh run.sh KafkaMetadata_Load 2 3 1 5 client > ~/KafkaMetadata_Load.log 2>&1 &
 
 nohup python app.py ec2-54-86-5-5.compute-1.amazonaws.com > app.log 2>&1 &
 
@@ -30,6 +32,7 @@ nohup sh check.sh TblADCparent_company_Load &
 nohup sh check.sh TblADCquota_Load &
 nohup sh check.sh TblADScurrency_rates_Load &
 nohup sh check.sh SalesSummary_Load &
+nohup sh check.sh KafkaMetadata_Load &
 
 
 sh distcp.sh /user/dataeng/mysql/adsystemdb/tbladvertiser s3a://indeed-data/datalake/v1/prod/mysql/adsystemdb/tbladvertiser 50

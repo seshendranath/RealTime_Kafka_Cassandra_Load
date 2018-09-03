@@ -31,10 +31,13 @@ spark-submit \
 --conf "spark.sql.parquet.writeLegacyFormat=true" \
 --conf "dfs.block.size=1024m" \
 --conf "spark.sql.shuffle.partitions=1" \
+--conf "spark.cassandra.input.consistency.level=LOCAL_ONE" \
 --conf "spark.cassandra.output.consistency.level=LOCAL_ONE" \
 --conf "spark.dynamicAllocation.enabled=false" \
 --conf "spark.eventLog.enabled=false" \
---conf "spark.streaming.receiver.writeAheadLog.enable=false" \
+--conf "spark.streaming.receiver.writeAheadLog.enable=true" \
+--conf "spark.streaming.driver.writeAheadLog.closeFileAfterWrite=true" \
+--conf "spark.streaming.receiver.writeAheadLog.closeFileAfterWrite=true" \
 --conf "spark.streaming.unpersist=true" \
 --conf "spark.streaming.ui.retainedBatches=10" \
 --conf "spark.ui.retainedJobs=10" \
@@ -54,7 +57,8 @@ spark-submit \
 --conf "spark.cleaner.ttl=120" \
 --conf "spark.streaming.backpressure.enabled=true" \
 --supervise \
-RealTime_Load-assembly-1.0-SNAPSHOT.jar -e=prod --class=com.indeed.dataengineering.task.$cname
+RealTime_Load-assembly-1.0-SNAPSHOT.jar -e=prod --class=com.indeed.dataengineering.task.$cname --checkpoint
+
 
 
 

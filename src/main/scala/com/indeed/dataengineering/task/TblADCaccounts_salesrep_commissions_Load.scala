@@ -19,7 +19,7 @@ class TblADCaccounts_salesrep_commissions_Load {
 
     import spark.implicits._
 
-    val checkpointDir = "s3a://indeed-data/dev/realtime/tmp/checkpoint/tblADCaccounts_salesrep_commissions"
+    val checkpointDir = conf("checkpointBaseLoc") + this.getClass.getSimpleName
 
     val Array(brokers, topics) = Array(conf("kafka.brokers"), conf("kafka.topic"))
     log.info(s"Initialized the Kafka brokers and topics to $brokers and $topics")

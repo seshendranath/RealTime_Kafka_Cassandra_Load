@@ -20,7 +20,7 @@ class TblCRMgeneric_product_credit_Load {
 
     import spark.implicits._
 
-    val checkpointDir = "s3a://indeed-data/dev/realtime/tmp/checkpoint/tblCRMgeneric_product_credit"
+    val checkpointDir = conf("checkpointBaseLoc") + this.getClass.getSimpleName
 
     val Array(brokers, topics) = Array(conf("kafka.brokers"), conf("kafka.topic"))
     log.info(s"Initialized the Kafka brokers and topics to $brokers and $topics")

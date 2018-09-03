@@ -21,6 +21,8 @@ class SalesSummary_Load {
 
     val sql = spark.sql _
 
+    val checkpointDir = conf("checkpointBaseLoc") + this.getClass.getSimpleName
+
     val Array(brokers, topics) = Array(conf("kafka.brokers"), conf("kafka.topic"))
     log.info(s"Initialized the Kafka brokers and topics to $brokers and $topics")
 
@@ -83,7 +85,12 @@ class SalesSummary_Load {
     val streamTestAdvertiserIds = tblAdvertiser.where("opType IN ('insert', 'update', 'delete') AND type='Test'").selectExpr("CAST(id AS BIGINT)").distinct
 
     log.info("Constructing in memory table of test advertiser ids")
-    streamTestAdvertiserIds.writeStream.queryName("streamTestAdvertiserIds").outputMode("append").format("memory").start()
+    if (conf.getOrElse("checkpoint", "false") == "true") {
+      streamTestAdvertiserIds.writeStream.option("checkpointLocation", checkpointDir + "/streamTestAdvertiserIds").queryName("streamTestAdvertiserIds").outputMode("append").format("memory").start()
+    } else {
+      streamTestAdvertiserIds.writeStream.queryName("streamTestAdvertiserIds").outputMode("append").format("memory").start()
+    }
+
 
 
     log.info("Reading adsystemdb.tbladscurrency_rates from cassandra")
@@ -97,7 +104,12 @@ class SalesSummary_Load {
     val streamtblADScurrency_rates = tblADScurrency_rates.where("opType IN ('insert', 'update')").select("activity_date", "from_currency", "exchange_rate").distinct
 
     log.info("Constructing in memory table of tblADScurrency_rates")
-    streamtblADScurrency_rates.writeStream.queryName("streamtblADScurrency_rates").outputMode("append").format("memory").start()
+    if (conf.getOrElse("checkpoint", "false") == "true") {
+      streamtblADScurrency_rates.writeStream.option("checkpointLocation", checkpointDir + "/streamtblADScurrency_rates").queryName("streamtblADScurrency_rates").outputMode("append").format("memory").start()
+    } else {
+      streamtblADScurrency_rates.writeStream.queryName("streamtblADScurrency_rates").outputMode("append").format("memory").start()
+    }
+
 
 
     log.info("Reading tblADCaccounts_salesrep_commissions from kafka streams")
@@ -171,7 +183,12 @@ class SalesSummary_Load {
       """.stripMargin
 
     log.info(s"Running Streaming Query: $tblADCaccounts_salesrep_commissionsSummarySql")
-    sql(tblADCaccounts_salesrep_commissionsSummarySql).as[Sales_Revenue_Summary].writeStream.foreach(Sales_Revenue_SummaryWriter).outputMode("append").start()
+    if (conf.getOrElse("checkpoint", "false") == "true") {
+      sql(tblADCaccounts_salesrep_commissionsSummarySql).as[Sales_Revenue_Summary].writeStream.option("checkpointLocation", checkpointDir + "/tblADCaccounts_salesrep_commissionsSummarySql").foreach(Sales_Revenue_SummaryWriter).outputMode("append").start()
+    } else {
+      sql(tblADCaccounts_salesrep_commissionsSummarySql).as[Sales_Revenue_Summary].writeStream.foreach(Sales_Revenue_SummaryWriter).outputMode("append").start()
+    }
+
 
 
     val tblADCaccounts_salesrep_commissionsSummaryDebugSql =
@@ -326,7 +343,12 @@ class SalesSummary_Load {
       """.stripMargin
 
     log.info(s"Running Streaming Query: $tblCRMgeneric_product_creditSummarySql")
-    sql(tblCRMgeneric_product_creditSummarySql).as[Sales_Revenue_Summary].writeStream.foreach(Sales_Revenue_SummaryWriter).outputMode("append").start()
+    if (conf.getOrElse("checkpoint", "false") == "true") {
+      sql(tblCRMgeneric_product_creditSummarySql).as[Sales_Revenue_Summary].writeStream.option("checkpointLocation", checkpointDir + "/tblCRMgeneric_product_creditSummarySql").foreach(Sales_Revenue_SummaryWriter).outputMode("append").start()
+    } else {
+      sql(tblCRMgeneric_product_creditSummarySql).as[Sales_Revenue_Summary].writeStream.foreach(Sales_Revenue_SummaryWriter).outputMode("append").start()
+    }
+
 
 
     log.info("Reading tblADCadvertiser_rep_revenues from kafka streams")
@@ -375,7 +397,12 @@ class SalesSummary_Load {
       """.stripMargin
 
     log.info(s"Running Streaming Query: $tblADCadvertiser_rep_revenuesSummarySql")
-    sql(tblADCadvertiser_rep_revenuesSummarySql).as[Sales_Revenue_Summary].writeStream.foreach(Sales_Revenue_SummaryWriter).outputMode("append").start()
+    if (conf.getOrElse("checkpoint", "false") == "true") {
+      sql(tblADCadvertiser_rep_revenuesSummarySql).as[Sales_Revenue_Summary].writeStream.option("checkpointLocation", checkpointDir + "/tblADCadvertiser_rep_revenuesSummarySql").foreach(Sales_Revenue_SummaryWriter).outputMode("append").start()
+    } else {
+      sql(tblADCadvertiser_rep_revenuesSummarySql).as[Sales_Revenue_Summary].writeStream.foreach(Sales_Revenue_SummaryWriter).outputMode("append").start()
+    }
+
 
 
     log.info("Await Any Stream Query Termination")

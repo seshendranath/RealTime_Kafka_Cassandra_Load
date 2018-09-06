@@ -35,6 +35,7 @@ class KafkaMetadata_Load {
       .option("subscribe", topics).option("failOnDataLoss", "false")
       .load()
     //.option("startingOffsets", s""" {"${conf("kafka.topic")}":{"0":-1}} """)
+    //.option("assign", """{"maxwell":[4,7,1,9,3,]}""")
 
     log.info("Extract value and map from Kafka consumer records")
     val rawData = kafkaStream.selectExpr("topic", "partition", "offset", "timestamp AS kafka_timestamp", "CAST(value AS STRING)")

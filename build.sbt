@@ -50,10 +50,17 @@ libraryDependencies ++= Seq(
   "com.amazonaws" % "aws-java-sdk" % awsVersion % sparkDependencyScope,
   "com.amazonaws" % "aws-java-sdk-s3" % awsVersion,
   "com.amazonaws" % "aws-java-sdk-core" % awsVersion,
-  "org.apache.hadoop" % "hadoop-aws" % "2.8.1",
+  "org.apache.hadoop" % "hadoop-aws" % "2.8.1"
+    exclude("javax.servlet",     "servlet-api")
+    exclude("javax.servlet.jsp", "jsp-api")
+    exclude("org.mortbay.jetty", "servlet-api"),
 
   // Twitter Libraries
-  "com.twitter" % "jsr166e" % "1.1.0"
+  "com.twitter" % "jsr166e" % "1.1.0",
+
+  // Testing only
+  "org.scala-lang" % "scala-xml" % "2.11.0-M4"
+
 )
 
 

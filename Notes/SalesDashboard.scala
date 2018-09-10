@@ -27,8 +27,14 @@ spark.conf.set("spark.cassandra.input.consistency.level", "LOCAL_ONE")
 spark.conf.set("spark.cassandra.output.consistency.level", "LOCAL_ONE")
 
 spark.conf.set("spark.cassandra.connection.host", "172.31.31.252,172.31.22.160,172.31.26.117,172.31.19.127")
+spark.conf.set("spark.driver.maxResultSize","2g")
+spark.conf.set("spark.streaming.backpressure.enabled", true)
+spark.conf.set("spark.streaming.backpressure.initialRate", 100)
+spark.conf.set("spark.streaming.receiver.maxRate", 100)
+spark.conf.set("spark.streaming.kafka.maxRatePerPartition", 100)
 
-val Array(brokers, topics) = Array("ec2-54-85-62-208.compute-1.amazonaws.com:9092", "maxwell")
+
+val Array(brokers, topics) = Array("ec2-54-160-85-68.compute-1.amazonaws.com:9092,ec2-54-226-72-146.compute-1.amazonaws.com:9092", "maxwell")
 
 val timestampFormat = new SimpleDateFormat("yyyy-MM-dd' 'HH:mm:ss")
 

@@ -21,7 +21,34 @@ import com.datastax.driver.core._
 import scala.collection.mutable
 import org.apache.spark.sql.types._
 import com.datastax.spark.connector.streaming._
+import collection.JavaConverters._
+import scala.collection.mutable
 
+val cluster = Cluster.builder().addContactPoints(c.split(","): _*).build()
+val session = cluster.connect("metadata")
+
+val query = s"select topic, partition, offset from streaming_metadata where job = 'SalesSummary_Load';"
+val res = session.execute(query).all.asScala.toArray
+
+val resMap = mutable.Map[String, mutable.Map[Int, Long]]()
+
+res.foreach {rec =>
+    val topic = rec.getString("topic")
+    val partition = rec.getInt("partition")
+    val offset = rec.getLong("offset")
+    val value = resMap.getOrElse(topic, mutable.Map[Int, Long]())
+    resMap += topic -> (value + (partition -> Math.min(value.getOrElse(partition, offset), offset)))
+}
+
+val assignString = "{" + resMap.map{ case (k, v) => s""""$k":[${v.map(_._1).mkString(",")}]"""}.mkString(",") + "}"
+val offsetString = "{" + resMap.map{ case (k, v) => s""""$k":{${v.map{case (p, o) => '"' + s"$p" + '"' + s":$o"}.mkString(",")}}"""}.mkString(",") + "}"
+
+
+val kafkaStream = spark.readStream.format("kafka").option("kafka.bootstrap.servers", brokers).option("assign", assignString).option("startingOffsets", offsetString).load()
+
+val q = kafkaStream.writeStream.format("console").start()
+
+q.stop
 
 
 spark.conf.set("spark.sql.shuffle.partitions", "1")

@@ -4,7 +4,10 @@ import java.sql.Timestamp
 import org.apache.spark.sql.types._
 
 case class TblADCquota(
-                        opType: String
+                        topic: String
+                        , partition: Int
+                        , offset: BigInt
+                        , opType: String
                         , year: BigInt
                         , month: Int
                         , user_id: Int

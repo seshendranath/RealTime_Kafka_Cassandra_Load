@@ -27,6 +27,10 @@ CREATE TABLE kafka_metadata
 
 CREATE INDEX binlog_position_idx ON kafka_metadata ( binlog_position );
 
+ALTER TABLE metadata.kafka_metadata WITH gc_grace_seconds = 600 AND
+compaction = {'class': 'org.apache.cassandra.db.compaction.SizeTieredCompactionStrategy', 'max_threshold': '32', 'min_threshold': '4', 'unchecked_tombstone_compaction': 'true',
+'tombstone_compaction_interval': '600', 'tombstone_threshold': '0.1'};
+
 CREATE TABLE streaming_metadata
 (
  job text,
@@ -43,6 +47,30 @@ CREATE TABLE streaming_metadata
  meta_last_updated timestamp,
  PRIMARY KEY (job, db, tbl)
 );
+
+INSERT INTO streaming_metadata (job, db, tbl, topic, partition, offset) 
+VALUES('TblADCaccounts_salesrep_commissions_Load', 'adcentraldb', 'tblADCaccounts_salesrep_commissions', 'maxwell', 9, 133595255);
+
+INSERT INTO streaming_metadata (job, db, tbl, topic, partition, offset) 
+VALUES('TblADCadvertiser_rep_revenues_Load', 'adcentraldb', 'tblADCadvertiser_rep_revenues', 'maxwell', 1, 69764045);
+
+INSERT INTO streaming_metadata (job, db, tbl, topic, partition, offset) 
+VALUES('Tbladvertiser_Load', 'adsystemdb', 'tbladvertiser', 'maxwell', 9, 133596352);
+
+INSERT INTO streaming_metadata (job, db, tbl, topic, partition, offset) 
+VALUES('TblADCparent_company_Load', 'adcentraldb', 'tblADCparent_company', 'maxwell', 4, 378266);
+
+INSERT INTO streaming_metadata (job, db, tbl, topic, partition, offset) 
+VALUES('TblADCparent_company_advertisers_Load', 'adcentraldb', 'tblADCparent_company_advertisers', 'maxwell', 3, 171557);
+
+INSERT INTO streaming_metadata (job, db, tbl, topic, partition, offset) 
+VALUES('TblCRMgeneric_product_credit_Load', 'adcentraldb', 'tblCRMgeneric_product_credit', 'maxwell', 7, 17868);
+
+INSERT INTO streaming_metadata (job, db, tbl, topic, partition, offset) 
+VALUES('TblADCquota_Load', 'adcentraldb', 'tblADCquota', 'maxwell', 4, 323532);
+
+INSERT INTO streaming_metadata (job, db, tbl, topic, partition, offset) 
+VALUES('TblADScurrency_rates_Load', 'adsystemdb', 'tblADScurrency_rates', 'maxwell', 7, 16709);
 
 CREATE TABLE streaming_stats
 (

@@ -4,7 +4,10 @@ import java.sql.{Date, Timestamp}
 import org.apache.spark.sql.types._
 
 case class TblADCparent_company(
-                                 opType: String
+                                 topic: String
+                                 , partition: Int
+                                 , offset: BigInt
+                                 , opType: String
                                  , id: BigInt
                                  , company: String
                                  , sales_region: String

@@ -5,7 +5,10 @@ import org.apache.spark.sql.types._
 
 
 case class TblCRMgeneric_product_credit(
-                                         opType: String
+                                         topic: String
+                                         , partition: Int
+                                         , offset: BigInt
+                                         , opType: String
                                          , id: BigInt
                                          , activity_date: Date
                                          , advertiser_id: Option[BigInt]

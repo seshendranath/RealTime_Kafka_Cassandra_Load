@@ -5,7 +5,10 @@ import java.sql.{Date, Timestamp}
 import org.apache.spark.sql.types._
 
 case class Tbladvertiser(
-                          opType: String
+                          topic: String
+                          , partition: Int
+                          , offset: BigInt
+                          , opType: String
                           , id: BigInt
                           , account_id: Option[BigInt]
                           , company: String

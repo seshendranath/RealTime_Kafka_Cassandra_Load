@@ -4,7 +4,10 @@ import java.sql.{Date, Timestamp}
 import org.apache.spark.sql.types._
 
 case class TblADScurrency_rates(
-                                 opType: String
+                                 topic: String
+                                 , partition: Int
+                                 , offset: BigInt
+                                 , opType: String
                                  , activity_date: Date
                                  , from_currency: String
                                  , to_currency: String

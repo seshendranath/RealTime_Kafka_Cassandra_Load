@@ -4,7 +4,10 @@ import java.sql.{Date, Timestamp}
 import org.apache.spark.sql.types._
 
 case class TblADCaccounts_salesrep_commissions(
-                                                opType: String
+                                                topic: String
+                                                , partition: Int
+                                                , offset: BigInt
+                                                , opType: String
                                                 , date: Date
                                                 , advertiser_id: BigInt
                                                 , salesrep_id: Option[BigInt]

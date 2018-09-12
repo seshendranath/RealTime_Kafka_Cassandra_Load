@@ -1,47 +1,36 @@
 package com.indeed.dataengineering.task
 
-
 /**
   * Created by aguyyala on 10/19/17.
   */
 
 
+import com.datastax.driver.core.BatchStatement
+import com.datastax.driver.core.BatchStatement.Type
 import com.indeed.dataengineering.AnalyticsTaskApp._
 import org.apache.spark.sql._
 import com.indeed.dataengineering.models._
 import com.datastax.spark.connector.cql.CassandraConnector
-// import org.apache.hadoop.fs.Path
 import org.apache.spark.sql.functions.{log => _, _}
+import com.indeed.dataengineering.utilities.Utils._
 
 
 class TblADScurrency_rates_Load {
 
-  def run(): Unit = {
+  def run(rawData: DataFrame, connector: CassandraConnector): Unit = {
 
     import spark.implicits._
 
-    val checkpointDir = conf("checkpointBaseLoc") + this.getClass.getSimpleName
+    val db = "adsystemdb"
+    val tbl = "tblADScurrency_rates"
 
-    val Array(brokers, topics) = Array(conf("kafka.brokers"), conf("kafka.topic"))
-    log.info(s"Initialized the Kafka brokers and topics to $brokers and $topics")
+    val className = this.getClass.getSimpleName
 
-    log.info(s"Create Cassandra connector by passing host as ${conf("cassandra.host")}")
-    val connector = CassandraConnector(spark.sparkContext.getConf.set("spark.cassandra.connection.host", conf("cassandra.host")))
+    val checkpointDir = conf("checkpointBaseLoc") + className
 
-    log.info("Read Kafka streams")
-    val kafkaStream = spark
-      .readStream
-      .format("kafka")
-      .option("kafka.bootstrap.servers", brokers)
-      .option("subscribe", topics).option("failOnDataLoss", "false")
-      .load()
-    //.option("startingOffsets", s""" {"${conf("kafka.topic")}":{"0":-1}} """)
-
-    log.info("Extract value and map from Kafka consumer records")
-    val rawData = kafkaStream.selectExpr("CAST(key AS STRING)", "CAST(value AS STRING)").as[(String, String)].map(_._2)
 
     log.info("Map extracted kafka consumer records to Case Class")
-    val tblADScurrency_rates = rawData.select(from_json($"value", TblADScurrency_rates.jsonSchema).as("value")).filter($"value.table" === "tblADScurrency_rates").select($"value.type".as("opType"), $"value.data.*")
+    val tblADScurrency_rates = rawData.select($"topic", $"partition", $"offset", from_json($"value", TblADScurrency_rates.jsonSchema).as("value")).filter($"value.table" === "tblADScurrency_rates").select($"topic", $"partition", $"offset", $"value.type".as("opType"), $"value.data.*").where("opType IN ('insert', 'update', 'delete')")
 
 
     log.info("Create ForeachWriter for Cassandra")
@@ -51,42 +40,43 @@ class TblADScurrency_rates_Load {
 
       def process(value: TblADScurrency_rates): Unit = {
 
-        // def intBool(i: Any): Any = if (i==null) null else if (i==0) false else true
+        val setClause = getSetClause(value.opType)
 
-        val statsQuery = "UPDATE stats.kafka_stream_stats SET records_processed = records_processed + 1 WHERE db = 'adsystemdb' and tbl = 'tblADScurrency_rates'"
+        val metaQueries = getMetaQueries(className, db, tbl, value.topic, value.partition, value.offset)
 
-        if (value.opType == "insert" || value.opType == "update") {
-          val cQuery1 =
-            s"""
-               |INSERT INTO adsystemdb.tblADScurrency_rates (activity_date,from_currency,to_currency,exchange_rate,buy_rate,sell_rate,source,date_modified)
-               |VALUES (
-               | '${value.activity_date}'
-               |,'${value.from_currency}'
-               |,'${value.to_currency}'
-               |,${value.exchange_rate.orNull}
-               |,${value.buy_rate.orNull}
-               |,${value.sell_rate.orNull}
-               |,${if (value.source == null) null else "'" + value.source.replaceAll("'", "''") + "'"}
-               |,${if (value.date_modified == null) null else "'" + value.date_modified + "'"}
-               |)
-             """.stripMargin
-          connector.withSessionDo{session =>
-            session.execute(cQuery1)
-            session.execute(statsQuery)
-          }
+        val statQueries = getStatQueries(setClause, className, db, tbl)
+
+        val cQuery1 = if (value.opType == "insert" || value.opType == "update") {
+          s"""
+             |INSERT INTO adsystemdb.tblADScurrency_rates (activity_date,from_currency,to_currency,exchange_rate,buy_rate,sell_rate,source,date_modified)
+             |VALUES (
+             | '${value.activity_date}'
+             |,'${value.from_currency}'
+             |,'${value.to_currency}'
+             |,${value.exchange_rate.orNull}
+             |,${value.buy_rate.orNull}
+             |,${value.sell_rate.orNull}
+             |,${if (value.source == null) null else "'" + value.source.replaceAll("'", "''") + "'"}
+             |,${if (value.date_modified == null) null else "'" + value.date_modified + "'"}
+             |)
+           """.stripMargin
+        } else {
+          s"""
+             |DELETE FROM adsystemdb.tblADScurrency_rates
+             |WHERE activity_date = ${value.activity_date}
+             |AND to_currency = ${value.to_currency}
+             |AND from_currency = ${value.from_currency}
+           """.stripMargin
         }
-        else if (value.opType == "delete") {
-          val cQuery1 =
-            s"""
-               |DELETE FROM adsystemdb.tblADScurrency_rates
-               |WHERE activity_date = ${value.activity_date}
-               |AND to_currency = ${value.to_currency}
-               |AND from_currency = ${value.from_currency}
-             """.stripMargin
-          connector.withSessionDo{session =>
-            session.execute(cQuery1)
-            session.execute(statsQuery)
-          }
+
+        connector.withSessionDo { session =>
+          val batchStatement1 = new BatchStatement
+          val batchStatement2 = new BatchStatement(Type.UNLOGGED)
+          batchStatement1.add(session.prepare(cQuery1).bind)
+          metaQueries.foreach(q => batchStatement1.add(session.prepare(q).bind))
+          statQueries.foreach(q => batchStatement2.add(session.prepare(q).bind))
+          session.execute(batchStatement1)
+          session.execute(batchStatement2)
         }
       }
 

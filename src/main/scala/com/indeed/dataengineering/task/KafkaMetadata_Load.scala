@@ -25,6 +25,10 @@ class KafkaMetadata_Load {
     val className = this.getClass.getSimpleName
 
     val checkpointDir = conf("checkpointBaseLoc") + className
+    log.info(s"Checkpoint Dir: $checkpointDir")
+
+    val executePlain = conf.getOrElse("executePlain", "false").toBoolean
+    val executeMeta = conf.getOrElse("executeMeta", "false").toBoolean
 
     val sql = spark.sql _
 
@@ -48,14 +52,26 @@ class KafkaMetadata_Load {
 
         val statQueries = getStatQueries(setClause, className, value.db, value.tbl)
 
-        connector.withSessionDo { session =>
-          val batchStatement1 = new BatchStatement
-          val batchStatement2 = new BatchStatement(Type.UNLOGGED)
-          batchStatement1.add(session.prepare(cQuery1).bind)
-          metaQueries.foreach(q => batchStatement1.add(session.prepare(q).bind))
-          statQueries.foreach(q => batchStatement2.add(session.prepare(q).bind))
-          session.execute(batchStatement1)
-          session.execute(batchStatement2)
+        if (executePlain) {
+          connector.withSessionDo { session => session.execute(cQuery1) }
+        } else if (executeMeta) {
+          connector.withSessionDo { session =>
+            val batchStatement1 = new BatchStatement
+            batchStatement1.add(session.prepare(cQuery1).bind)
+            metaQueries.foreach(q => batchStatement1.add(session.prepare(q).bind))
+            session.execute(batchStatement1)
+          }
+        } else {
+          connector.withSessionDo { session =>
+            val batchStatement1 = new BatchStatement
+            batchStatement1.add(session.prepare(cQuery1).bind)
+            metaQueries.foreach(q => batchStatement1.add(session.prepare(q).bind))
+            session.execute(batchStatement1)
+
+            val batchStatement2 = new BatchStatement(Type.UNLOGGED)
+            statQueries.foreach(q => batchStatement2.add(session.prepare(q).bind))
+            session.execute(batchStatement2)
+          }
         }
       }
 

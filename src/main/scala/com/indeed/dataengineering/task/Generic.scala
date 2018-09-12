@@ -67,6 +67,7 @@ class Generic {
     log.info("Extract value and map from Kafka consumer records")
     val rawData = kafkaStream.selectExpr("topic", "partition", "offset", "timestamp AS kafka_timestamp", "CAST(value AS STRING)")
 
+    log.info(s"Running $runClass...")
     val clazz = Class.forName(runClass).newInstance.asInstanceOf[{ def run(rawData: DataFrame, connector: CassandraConnector): Unit }]
     clazz.run(rawData, connector)
   }

@@ -28,6 +28,9 @@ class TblADCadvertiser_rep_revenues_Load {
 
     val checkpointDir = conf("checkpointBaseLoc") + className
 
+    val executePlain = conf.getOrElse("executePlain", "false").toBoolean
+    val executeMeta = conf.getOrElse("executeMeta", "false").toBoolean
+
     log.info("Map extracted kafka consumer records to Case Class")
     val tblADCadvertiser_rep_revenues = rawData.select($"topic", $"partition", $"offset", from_json($"value", TblADCadvertiser_rep_revenues.jsonSchema).as("value")).filter($"value.table" === "tblADCadvertiser_rep_revenues").select($"topic", $"partition", $"offset", $"value.type".as("opType"), $"value.data.*").where("opType IN ('insert', 'update', 'delete')")
 
@@ -77,14 +80,26 @@ class TblADCadvertiser_rep_revenues_Load {
            """.stripMargin
         }
 
-        connector.withSessionDo { session =>
-          val batchStatement1 = new BatchStatement
-          val batchStatement2 = new BatchStatement(Type.UNLOGGED)
-          batchStatement1.add(session.prepare(cQuery1).bind)
-          metaQueries.foreach(q => batchStatement1.add(session.prepare(q).bind))
-          statQueries.foreach(q => batchStatement2.add(session.prepare(q).bind))
-          session.execute(batchStatement1)
-          session.execute(batchStatement2)
+        if (executePlain) {
+          connector.withSessionDo { session => session.execute(cQuery1) }
+        } else if (executeMeta) {
+          connector.withSessionDo { session =>
+            val batchStatement1 = new BatchStatement
+            batchStatement1.add(session.prepare(cQuery1).bind)
+            metaQueries.foreach(q => batchStatement1.add(session.prepare(q).bind))
+            session.execute(batchStatement1)
+          }
+        } else {
+          connector.withSessionDo { session =>
+            val batchStatement1 = new BatchStatement
+            batchStatement1.add(session.prepare(cQuery1).bind)
+            metaQueries.foreach(q => batchStatement1.add(session.prepare(q).bind))
+            session.execute(batchStatement1)
+
+            val batchStatement2 = new BatchStatement(Type.UNLOGGED)
+            statQueries.foreach(q => batchStatement2.add(session.prepare(q).bind))
+            session.execute(batchStatement2)
+          }
         }
       }
 

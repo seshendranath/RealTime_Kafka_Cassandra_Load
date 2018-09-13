@@ -28,6 +28,9 @@ class TblCRMgeneric_product_credit_Load {
 
     val checkpointDir = conf("checkpointBaseLoc") + className
 
+    val executePlain = conf.getOrElse("executePlain", "false").toBoolean
+    val executeMeta = conf.getOrElse("executeMeta", "false").toBoolean
+
     log.info("Map extracted kafka consumer records to Case Class")
     val tblCRMgeneric_product_credit = rawData.select($"topic", $"partition", $"offset", from_json($"value", TblCRMgeneric_product_credit.jsonSchema).as("value")).filter($"value.table" === "tblCRMgeneric_product_credit").select($"topic", $"partition", $"offset", $"value.type".as("opType"), $"value.data.*").where("opType IN ('insert', 'update', 'delete')")
 
@@ -76,9 +79,9 @@ class TblCRMgeneric_product_credit_Load {
 
         connector.withSessionDo { session =>
 
-          if (conf.getOrElse("executePlain", "false").toBoolean) {
+          if (executePlain) {
             session.execute(cQuery1)
-          } else if (conf.getOrElse("executeMeta", "false").toBoolean) {
+          } else if (executeMeta) {
             /* val batchStatement1 = new BatchStatement
             batchStatement1.add(session.prepare(cQuery1).bind)
             batchStatement1.add(session.prepare(metaQuery).bind)

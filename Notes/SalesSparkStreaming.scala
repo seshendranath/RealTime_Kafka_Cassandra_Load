@@ -37,17 +37,18 @@ val session = cluster.connect("adcentraldb")
 spark.conf.set("spark.cassandra.connection.host", "172.31.31.252,172.31.22.160,172.31.26.117,172.31.19.127")
 spark.conf.set("spark.cassandra.output.consistency.level", "LOCAL_ONE")
 
-val db = "adsystemdb"
-val table = "tblADScurrency_rates"
-val pk = "date,advertiser_id"
+val db = "adcentraldb"
+val table = "tblACLusers"
+val pk = "id"
 val dtCol = "date_modified"
 val drop = true
 
-val df = spark.read.parquet(s"s3a://indeed-data/datalake/v1/prod/mysql/$db/$table")
+val df = spark.read.parquet(s"s3a://indeed-data/datalake/v1/prod/mysql/$db/$table/*")
 df1.unpersist
 val df1 = df.repartition(160)
 df1.persist
-df1.count
+val insert_count = df1.count
+println(insert_count)
 df1.createOrReplaceTempView("df1")
 
 val cols = getColsFromDF(df)
@@ -70,7 +71,10 @@ cQuery = s"SELECT MIN(topic) AS topic, MIN(partition) AS partition, MIN(offset) 
 val res = session.execute(cQuery).all.asScala.toArray.head
 val (topic, partition, offset) = (res.getString("topic"), res.getInt("partition"), res.getLong("offset"))
 
-cQuery = s"INSERT INTO metadata.test_streaming_metadata (job, db, tbl, topic, partition, offset) VALUES('${table.capitalize + "_Load"}', '$db', '$table', '$topic', $partition, $offset)"
+cQuery = s"INSERT INTO metadata.streaming_metadata (job, db, tbl, topic, partition, offset) VALUES('${table.capitalize + "_Load"}', '$db', '$table', '$topic', $partition, $offset)"
+session.execute(cQuery)
+
+cQuery = s"UPDATE stats.streaming_stats SET inserted_records = inserted_records + $insert_count WHERE job = '${table.capitalize + "_Load"}' AND db = '$db' AND tbl = '$table'"
 session.execute(cQuery)
 
 

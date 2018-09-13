@@ -1,12 +1,13 @@
 nohup sh run.sh KafkaMetadata_Load 2 10 1 6 client > KafkaMetadata_Load.log 2>&1 &
 
-nohup sh run.sh Tbladvertiser_Load 2 2 1 1 client > Tbladvertiser_Load.log 2>&1 &
-nohup sh run.sh TblADCaccounts_salesrep_commissions_Load 2 2 1 1 client > TblADCaccounts_salesrep_commissions_Load.log 2>&1 &
-nohup sh run.sh TblADCadvertiser_rep_revenues_Load 2 2 1 1 client > TblADCadvertiser_rep_revenues_Load.log 2>&1 &
+nohup sh run.sh Tbladvertiser_Load 2 5 1 1 client > Tbladvertiser_Load.log 2>&1 &
+nohup sh run.sh TblADCaccounts_salesrep_commissions_Load 2 5 1 1 client > TblADCaccounts_salesrep_commissions_Load.log 2>&1 &
+nohup sh run.sh TblADCadvertiser_rep_revenues_Load 2 5 1 1 client > TblADCadvertiser_rep_revenues_Load.log 2>&1 &
 nohup sh run.sh TblCRMgeneric_product_credit_Load 2 2 1 1 client > TblCRMgeneric_product_credit_Load.log 2>&1 &
 nohup sh run.sh TblADCparent_company_advertisers_Load 2 2 1 1 client > TblADCparent_company_advertisers_Load.log 2>&1 &
 nohup sh run.sh TblADCparent_company_Load 2 2 1 1 client > TblADCparent_company_Load.log 2>&1 &
 nohup sh run.sh TblADCquota_Load 2 2 1 1 client > TblADCquota_Load.log 2>&1 &
+nohup sh run.sh TblACLusers_Load 2 2 1 1 client > TblACLusers_Load.log 2>&1 &
 nohup sh run.sh TblADScurrency_rates_Load 2 2 1 1 client > TblADScurrency_rates_Load.log 2>&1 &
 
 nohup sh run.sh SalesSummary_Load 2 2 1 5 client > ~/SalesSummary_Load.log 2>&1 &
@@ -21,6 +22,7 @@ nohup sh check.sh TblCRMgeneric_product_credit_Load &
 nohup sh check.sh TblADCparent_company_advertisers_Load &
 nohup sh check.sh TblADCparent_company_Load &
 nohup sh check.sh TblADCquota_Load &
+nohup sh check.sh TblACLusers_Load &
 nohup sh check.sh TblADScurrency_rates_Load &
 
 nohup sh check.sh SalesSummary_Load &
@@ -30,8 +32,10 @@ nohup sh check.sh SalesSummary_Load &
 sh distcp.sh /user/dataeng/mysql/adsystemdb/tbladvertiser s3a://indeed-data/datalake/v1/prod/mysql/adsystemdb/tbladvertiser 50
 sh distcp.sh /user/dataeng/mysql/adsystemdb/tblADScurrency_rates s3a://indeed-data/datalake/v1/prod/mysql/adsystemdb/tblADScurrency_rates 1
 sh distcp.sh /user/dataeng/mysql/adcentraldb/tblADCaccounts_salesrep_commissions s3a://indeed-data/datalake/v1/prod/mysql/adcentraldb/tblADCaccounts_salesrep_commissions 400
-sh distcp.sh /user/dataeng/mysql/adcentraldb/tblADCadvertiser_rep_revenues s3a://indeed-data/datalake/v1/prod/mysql/adcentraldb/tblADCadvertiser_rep_revenues 150
+sh distcp.sh /user/dataeng/mysql/adcentraldb/tblADCadvertiser_rep_revenues s3a://indeed-data/datalake/v1/prod/mysql/adcentraldb/tblADCadvertiser_rep_revenues 180
 sh distcp.sh /user/dataeng/mysql/adcentraldb/tblADCquota s3a://indeed-data/datalake/v1/prod/mysql/adcentraldb/tblADCquota 1
 sh distcp.sh /user/dataeng/mysql/adcentraldb/tblADCparent_company s3a://indeed-data/datalake/v1/prod/mysql/adcentraldb/tblADCparent_company 5
 sh distcp.sh /user/dataeng/mysql/adcentraldb/tblADCparent_company_advertisers s3a://indeed-data/datalake/v1/prod/mysql/adcentraldb/tblADCparent_company_advertisers 5
 sh distcp.sh /user/dataeng/mysql/adcentraldb/tblCRMgeneric_product_credit s3a://indeed-data/datalake/v1/prod/mysql/adcentraldb/tblCRMgeneric_product_credit 1
+sh distcp.sh /user/dataeng/mysql/adcentraldb/tblACLusers s3a://indeed-data/datalake/v1/prod/mysql/adcentraldb/tblACLusers 1
+

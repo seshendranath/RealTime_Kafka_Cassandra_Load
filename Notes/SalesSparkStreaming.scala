@@ -2,6 +2,7 @@
 import scala.collection.mutable
 import org.apache.spark.sql._
 import com.datastax.driver.core._
+import collection.JavaConverters._
 
 def sparkToCassandraDataType(dataType: String): String = {
   val decimalPattern = """DecimalType\(\d+,\s?\d+\)""".r
@@ -39,22 +40,38 @@ spark.conf.set("spark.cassandra.output.consistency.level", "LOCAL_ONE")
 val db = "adsystemdb"
 val table = "tblADScurrency_rates"
 val pk = "date,advertiser_id"
+val dtCol = "date_modified"
+val drop = true
 
 val df = spark.read.parquet(s"s3a://indeed-data/datalake/v1/prod/mysql/$db/$table")
 df1.unpersist
 val df1 = df.repartition(160)
 df1.persist
 df1.count
+df1.createOrReplaceTempView("df1")
 
 val cols = getColsFromDF(df)
 
+if (drop) {
+      val query = s"DROP TABLE IF EXISTS $db.$table;"
+      session.execute(query)
+}
 
-val query = s"CREATE TABLE IF NOT EXISTS $db.$table (" + cols.map(x => x._1 + " " + x._2).mkString(",") + s", PRIMARY KEY ($pk));"
-session.execute(query)
+var cQuery = s"CREATE TABLE IF NOT EXISTS $db.$table (" + cols.map(x => x._1 + " " + x._2).mkString(",") + s", PRIMARY KEY ($pk));"
+session.execute(cQuery)
 
 var df2 = df1
 for (c <- df1.columns) df2 = df2.withColumnRenamed(c, c.toLowerCase)
 df2.write.format("org.apache.spark.sql.cassandra").mode(SaveMode.Append).options(Map("table" -> table.toLowerCase, "keyspace" -> db)).save
+
+val latest_dt_modified = sql(s"SELECT MAX($dtCol) FROM df1").collect.head.get(0).toString
+
+cQuery = s"SELECT MIN(topic) AS topic, MIN(partition) AS partition, MIN(offset) AS offset FROM metadata.kafka_metadata WHERE db = '$db' AND tbl = '$table' AND tbl_date_modified = '$latest_dt_modified'"
+val res = session.execute(cQuery).all.asScala.toArray.head
+val (topic, partition, offset) = (res.getString("topic"), res.getInt("partition"), res.getLong("offset"))
+
+cQuery = s"INSERT INTO metadata.test_streaming_metadata (job, db, tbl, topic, partition, offset) VALUES('${table.capitalize + "_Load"}', '$db', '$table', '$topic', $partition, $offset)"
+session.execute(cQuery)
 
 
 // Testing Real Time Cassandra Loads in Spark Shell

@@ -51,7 +51,7 @@ CREATE TABLE streaming_metadata
 INSERT INTO streaming_metadata (job, db, tbl, topic, partition, offset) 
 VALUES('TblADCaccounts_salesrep_commissions_Load', 'adcentraldb', 'tblADCaccounts_salesrep_commissions', 'maxwell', 9, -1);
 
-INSERT INTO metadata.streaming_metadata (job, db, tbl, topic, partition, offset) 
+INSERT INTO streaming_metadata (job, db, tbl, topic, partition, offset) 
 VALUES('TblADCadvertiser_rep_revenues_Load', 'adcentraldb', 'tblADCadvertiser_rep_revenues', 'maxwell', 1, -1);
 
 INSERT INTO streaming_metadata (job, db, tbl, topic, partition, offset) 
@@ -77,7 +77,7 @@ VALUES('TblADScurrency_rates_Load', 'adsystemdb', 'tblADScurrency_rates', 'maxwe
 INSERT INTO streaming_metadata (job, db, tbl, topic, partition, offset) 
 VALUES('KafkaMetadata_Load', 'adcentraldb', 'tblADCaccounts_salesrep_commissions', 'maxwell', 9, -1);
 
-INSERT INTO metadata.streaming_metadata (job, db, tbl, topic, partition, offset) 
+INSERT INTO streaming_metadata (job, db, tbl, topic, partition, offset) 
 VALUES('KafkaMetadata_Load', 'adcentraldb', 'tblADCadvertiser_rep_revenues', 'maxwell', 1, -1);
 
 INSERT INTO streaming_metadata (job, db, tbl, topic, partition, offset) 

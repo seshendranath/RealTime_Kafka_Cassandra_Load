@@ -5,8 +5,8 @@ package com.indeed.dataengineering.task
   */
 
 
-import com.datastax.driver.core.BatchStatement
-import com.datastax.driver.core.BatchStatement.Type
+// import com.datastax.driver.core.BatchStatement
+// import com.datastax.driver.core.BatchStatement.Type
 import com.indeed.dataengineering.AnalyticsTaskApp._
 import org.apache.spark.sql._
 import com.indeed.dataengineering.models._
@@ -44,9 +44,9 @@ class TblADScurrency_rates_Load {
 
         val setClause = getSetClause(value.opType)
 
-        val metaQueries = getMetaQueries(className, db, tbl, value.topic, value.partition, value.offset)
+        val metaQuery = getMetaQueries(className, db, tbl, value.topic, value.partition, value.offset)
 
-        val statQueries = getStatQueries(setClause, className, db, tbl)
+        val (statQuery1, statQuery2) = getStatQueries(setClause, className, db, tbl)
 
         val cQuery1 = if (value.opType == "insert" || value.opType == "update") {
           s"""
@@ -75,21 +75,28 @@ class TblADScurrency_rates_Load {
           connector.withSessionDo { session => session.execute(cQuery1) }
         } else if (executeMeta) {
           connector.withSessionDo { session =>
-            val batchStatement1 = new BatchStatement
+            /* val batchStatement1 = new BatchStatement
             batchStatement1.add(session.prepare(cQuery1).bind)
-            metaQueries.foreach(q => batchStatement1.add(session.prepare(q).bind))
-            session.execute(batchStatement1)
+            batchStatement1.add(session.prepare(metaQuery).bind)
+            session.execute(batchStatement1) */
+
+						session.execute(cQuery1)
+						session.execute(metaQuery)
           }
         } else {
           connector.withSessionDo { session =>
-            val batchStatement1 = new BatchStatement
+            /* val batchStatement1 = new BatchStatement
             batchStatement1.add(session.prepare(cQuery1).bind)
-            metaQueries.foreach(q => batchStatement1.add(session.prepare(q).bind))
-            session.execute(batchStatement1)
+            batchStatement1.add(session.prepare(metaQuery).bind)
+            session.execute(batchStatement1) */
 
-            val batchStatement2 = new BatchStatement(Type.UNLOGGED)
-            statQueries.foreach(q => batchStatement2.add(session.prepare(q).bind))
-            session.execute(batchStatement2)
+						session.execute(cQuery1)
+						session.execute(metaQuery)
+
+
+            session.execute(statQuery1)
+						session.execute(statQuery2)
+
           }
         }
       }

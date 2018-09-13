@@ -27,26 +27,34 @@ class Generic {
     log.info(s"Create Cassandra connector by passing host as ${conf("cassandra.host")}")
     val connector = CassandraConnector(spark.sparkContext.getConf.set("spark.cassandra.connection.host", conf("cassandra.host")))
 
-    log.info("Connect to cassandra cluster")
-    val cluster = Cluster.builder().addContactPoints(conf("cassandra.host").split(","): _*).build()
-    val session = cluster.connect("metadata")
+    val skipMetadata = conf.getOrElse("skipMetadata", "false").toBoolean
 
-    val query = s"select topic, partition, offset from streaming_metadata where job = '${runClass.split("\\.").last}';"
-    log.info(s"Running Query in Cassandra to fetch partitions and offsets: $query")
-    val res = session.execute(query).all.asScala.toArray
+    val (assignoption, assignString, offsetString) = if (skipMetadata) {
+      ("subscribe", topics, "latest")
+    } else {
+      log.info("Connect to cassandra cluster")
+      val cluster = Cluster.builder().addContactPoints(conf("cassandra.host").split(","): _*).build()
+      val session = cluster.connect("metadata")
 
-    val resMap = mutable.Map[String, mutable.Map[Int, Long]]()
+      val query = s"select topic, partition, offset from streaming_metadata where job = '${runClass.split("\\.").last}';"
+      log.info(s"Running Query in Cassandra to fetch partitions and offsets: $query")
+      val res = session.execute(query).all.asScala.toArray
 
-    res.foreach { rec =>
-      val topic = rec.getString("topic")
-      val partition = rec.getInt("partition")
-      val offset = rec.getLong("offset")
-      val value = resMap.getOrElse(topic, mutable.Map[Int, Long]())
-      resMap += topic -> (value + (partition -> Math.min(value.getOrElse(partition, offset), offset)))
+      val resMap = mutable.Map[String, mutable.Map[Int, Long]]()
+
+      res.foreach { rec =>
+        val topic = rec.getString("topic")
+        val partition = rec.getInt("partition")
+        val offset = rec.getLong("offset")
+        val value = resMap.getOrElse(topic, mutable.Map[Int, Long]())
+        resMap += topic -> (value + (partition -> Math.min(value.getOrElse(partition, offset), offset)))
+      }
+
+      val aString = "{" + resMap.map { case (k, v) => s""""$k":[${v.keys.mkString(",")}]""" }.mkString(",") + "}"
+      val oString = "{" + resMap.map { case (k, v) => s""""$k":{${v.map { case (p, o) => '"' + s"$p" + '"' + s":$o" }.mkString(",")}}""" }.mkString(",") + "}"
+
+      ("assign", aString, oString)
     }
-
-    val assignString = "{" + resMap.map { case (k, v) => s""""$k":[${v.keys.mkString(",")}]""" }.mkString(",") + "}"
-    val offsetString = "{" + resMap.map { case (k, v) => s""""$k":{${v.map { case (p, o) => '"' + s"$p" + '"' + s":$o" }.mkString(",")}}""" }.mkString(",") + "}"
 
     log.info(s"Assign following topics and partitions: $assignString")
     log.info(s"Starting from the following offsets: $offsetString")
@@ -56,7 +64,8 @@ class Generic {
       .readStream
       .format("kafka")
       .option("kafka.bootstrap.servers", brokers)
-      .option("assign", assignString)
+      .option("kafka.max.poll.records", conf.getOrElse("max.poll.records", "100000").toInt)
+      .option(assignoption, assignString)
       .option("startingOffsets", offsetString)
       .option("failOnDataLoss", conf.getOrElse("failOnDataLoss", "false"))
       .load()
@@ -68,7 +77,7 @@ class Generic {
     val rawData = kafkaStream.selectExpr("topic", "partition", "offset", "timestamp AS kafka_timestamp", "CAST(value AS STRING)")
 
     log.info(s"Running $runClass...")
-    val clazz = Class.forName(runClass).newInstance.asInstanceOf[{ def run(rawData: DataFrame, connector: CassandraConnector): Unit }]
+    val clazz = Class.forName(runClass).newInstance.asInstanceOf[ {def run(rawData: DataFrame, connector: CassandraConnector): Unit}]
     clazz.run(rawData, connector)
   }
 

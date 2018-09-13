@@ -68,18 +68,18 @@ object Utils {
   }
 
 
-  def getMetaQueries(className: String, db: String, tbl: String, topic: String, partition: Int, offset: BigInt): Seq[String] = {
+  def getMetaQueries(className: String, db: String, tbl: String, topic: String, partition: Int, offset: BigInt): String = {
     val metaQuery =
       s"""
          |INSERT INTO metadata.streaming_metadata (job, db, tbl, topic, partition, offset)
          |VALUES ('$className', '$db', '$tbl', '$topic', $partition, $offset)
     	 """.stripMargin
 
-    Seq(metaQuery)
+    metaQuery
   }
 
 
-  def getStatQueries(setClause: String, className: String, db: String, tbl: String): Seq[String] = {
+  def getStatQueries(setClause: String, className: String, db: String, tbl: String): (String, String) = {
 
     val statQuery1 =
       s"""
@@ -95,7 +95,7 @@ object Utils {
          |WHERE job = '$className' AND db = '$db' and tbl = '$tbl' AND dt = '${DateTime.now.toString("yyyy-MM-dd")}' AND hr = ${DateTime.now.getHourOfDay}
        """.stripMargin
 
-    Seq(statQuery1, statQuery2)
+    (statQuery1, statQuery2)
   }
 
 }

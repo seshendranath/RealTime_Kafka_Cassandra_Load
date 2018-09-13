@@ -1,4 +1,4 @@
-nohup sh run.sh KafkaMetadata_Load 2 2 1 5 client > KafkaMetadata_Load.log 2>&1 &
+nohup sh run.sh KafkaMetadata_Load 2 10 1 6 client > KafkaMetadata_Load.log 2>&1 &
 
 nohup sh run.sh Tbladvertiser_Load 2 2 1 1 client > Tbladvertiser_Load.log 2>&1 &
 nohup sh run.sh TblADCaccounts_salesrep_commissions_Load 2 2 1 1 client > TblADCaccounts_salesrep_commissions_Load.log 2>&1 &

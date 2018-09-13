@@ -31,7 +31,7 @@ ALTER TABLE metadata.kafka_metadata WITH gc_grace_seconds = 600 AND
 compaction = {'class': 'org.apache.cassandra.db.compaction.SizeTieredCompactionStrategy', 'max_threshold': '32', 'min_threshold': '4', 'unchecked_tombstone_compaction': 'true',
 'tombstone_compaction_interval': '600', 'tombstone_threshold': '0.1'};
 
-CREATE TABLE streaming_metadata
+CREATE TABLE streaming_metadata_extended
 (
  job text,
  db text,
@@ -45,6 +45,17 @@ CREATE TABLE streaming_metadata
  kafka_timestamp timestamp,
  binlog_timestamp timestamp,
  meta_last_updated timestamp,
+ PRIMARY KEY (job, db, tbl)
+);
+
+CREATE TABLE streaming_metadata
+(
+ job text,
+ db text,
+ tbl text,
+ topic text,
+ partition int,
+ offset bigint,
  PRIMARY KEY (job, db, tbl)
 );
 

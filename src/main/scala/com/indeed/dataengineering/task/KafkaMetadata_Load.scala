@@ -18,7 +18,7 @@ import com.indeed.dataengineering.utilities.Utils.{getMetaQueries, getStatQuerie
 
 class KafkaMetadata_Load {
 
-  def run(rawData: DataFrame, connector: CassandraConnector): Unit = {
+  def run(rawData: DataFrame, connector: CassandraConnector, partitions: Set[Int]): Unit = {
 
     import spark.implicits._
 
@@ -107,7 +107,13 @@ class KafkaMetadata_Load {
     if (conf.getOrElse("checkpoint", "false") == "true") {
       df.as[KafkaMetadata].writeStream.option("checkpointLocation", checkpointDir).foreach(kafkaMetadataWriter).outputMode("append").start
     } else {
-      df.as[KafkaMetadata].writeStream.foreach(kafkaMetadataWriter).outputMode("append").start
+      if (partitions.isEmpty) {
+        df.as[KafkaMetadata].writeStream.foreach(kafkaMetadataWriter).outputMode("append").start
+      } else {
+        partitions.foreach { p =>
+          df.where(s"partition = $p").as[KafkaMetadata].writeStream.foreach(kafkaMetadataWriter).outputMode("append").start
+        }
+      }
     }
 
     log.info("Await Any Stream Query Termination")

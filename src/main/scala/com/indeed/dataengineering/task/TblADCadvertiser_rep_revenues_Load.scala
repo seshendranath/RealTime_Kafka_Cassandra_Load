@@ -17,7 +17,7 @@ import com.indeed.dataengineering.utilities.Utils._
 
 class TblADCadvertiser_rep_revenues_Load {
 
-  def run(rawData: DataFrame, connector: CassandraConnector): Unit = {
+  def run(rawData: DataFrame, connector: CassandraConnector, partitions: Set[Int]): Unit = {
 
     import spark.implicits._
 

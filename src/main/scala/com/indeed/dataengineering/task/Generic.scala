@@ -29,8 +29,8 @@ class Generic {
 
     val skipMetadata = conf.getOrElse("skipMetadata", "false").toBoolean
 
-    val (assignoption, assignString, offsetString) = if (skipMetadata) {
-      ("subscribe", topics, "latest")
+    val (assignoption, assignString, offsetString, partitions) = if (skipMetadata) {
+      ("subscribe", topics, "latest", Set[Int]())
     } else {
       log.info("Connect to cassandra cluster")
       val cluster = Cluster.builder().addContactPoints(conf("cassandra.host").split(","): _*).build()
@@ -41,6 +41,8 @@ class Generic {
       val res = session.execute(query).all.asScala.toArray
 
       val resMap = mutable.Map[String, mutable.Map[Int, Long]]()
+
+      val partitions = res.map(_.getInt("partition")).toSet
 
       res.foreach { rec =>
         val topic = rec.getString("topic")
@@ -53,7 +55,7 @@ class Generic {
       val aString = "{" + resMap.map { case (k, v) => s""""$k":[${v.keys.mkString(",")}]""" }.mkString(",") + "}"
       val oString = "{" + resMap.map { case (k, v) => s""""$k":{${v.map { case (p, o) => '"' + s"$p" + '"' + s":$o" }.mkString(",")}}""" }.mkString(",") + "}"
 
-      ("assign", aString, oString)
+      ("assign", aString, oString, partitions)
     }
 
     log.info(s"Assign following topics and partitions: $assignString")
@@ -64,7 +66,6 @@ class Generic {
       .readStream
       .format("kafka")
       .option("kafka.bootstrap.servers", brokers)
-      .option("kafka.max.poll.records", conf.getOrElse("max.poll.records", "100000").toInt)
       .option(assignoption, assignString)
       .option("startingOffsets", offsetString)
       .option("failOnDataLoss", conf.getOrElse("failOnDataLoss", "false"))
@@ -72,13 +73,18 @@ class Generic {
     //.option("subscribe", topics)
     //.option("startingOffsets", s""" {"${conf("kafka.topic")}":{"0":-1}} """)
     //.option("assign", """{"maxwell":[4,7,1,9,3]}""")
+    //.option("kafka.max.partition.fetch.bytes", conf.getOrElse("max.partition.fetch.bytes", "2147483647").toInt)
+    //.option("kafka.max.poll.records", conf.getOrElse("max.poll.records", "2147483647").toInt)
+    //.option("kafka.request.timeout.ms", conf.getOrElse("request.timeout.ms", "40000").toInt)
+    //.option("kafka.session.timeout.ms", conf.getOrElse("session.timeout.ms", "30000").toInt)
+    //.option("kafka.fetch.max.bytes", conf.getOrElse("fetch.max.bytes", "2147483647").toInt)
 
     log.info("Extract value and map from Kafka consumer records")
     val rawData = kafkaStream.selectExpr("topic", "partition", "offset", "timestamp AS kafka_timestamp", "CAST(value AS STRING)")
 
     log.info(s"Running $runClass...")
-    val clazz = Class.forName(runClass).newInstance.asInstanceOf[ {def run(rawData: DataFrame, connector: CassandraConnector): Unit}]
-    clazz.run(rawData, connector)
+    val clazz = Class.forName(runClass).newInstance.asInstanceOf[ {def run(rawData: DataFrame, connector: CassandraConnector, partitions: Set[Int]): Unit}]
+    clazz.run(rawData, connector, partitions)
   }
 
 }

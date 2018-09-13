@@ -38,17 +38,16 @@ spark.conf.set("spark.cassandra.connection.host", "172.31.31.252,172.31.22.160,1
 spark.conf.set("spark.cassandra.output.consistency.level", "LOCAL_ONE")
 
 val db = "adcentraldb"
-val table = "tblACLusers"
-val pk = "id"
+val table = "tblADCadvertiser_rep_revenues"
+val pk = "activity_date,advertiser_id,relationship"
 val dtCol = "date_modified"
 val drop = true
 
-val df = spark.read.parquet(s"s3a://indeed-data/datalake/v1/prod/mysql/$db/$table/*")
+val df = spark.read.parquet(s"s3a://indeed-data/datalake/v1/prod/mysql/$db/$table/$table/*")
 df1.unpersist
 val df1 = df.repartition(160)
 df1.persist
 val insert_count = df1.count
-println(insert_count)
 df1.createOrReplaceTempView("df1")
 
 val cols = getColsFromDF(df)

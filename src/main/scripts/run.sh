@@ -17,6 +17,16 @@ ne=$4
 ec=$5
 mode=$6
 
+cname=$1
+dm=$2
+em=$3
+ne=$4
+ec=$5
+mode=$6
+executeMode=$7
+skipMetadata=$8
+checkpoint=$9
+
 spark-submit \
 --name $cname \
 --master yarn \
@@ -35,9 +45,10 @@ spark-submit \
 --conf "spark.cassandra.output.consistency.level=LOCAL_ONE" \
 --conf "spark.dynamicAllocation.enabled=false" \
 --conf "spark.eventLog.enabled=false" \
---conf "spark.streaming.receiver.writeAheadLog.enable=true" \
---conf "spark.streaming.driver.writeAheadLog.closeFileAfterWrite=true" \
---conf "spark.streaming.receiver.writeAheadLog.closeFileAfterWrite=true" \
+--conf "spark.streaming.receiver.writeAheadLog.enable=false" \
+--conf "spark.streaming.driver.writeAheadLog.closeFileAfterWrite=false" \
+--conf "spark.streaming.receiver.writeAheadLog.closeFileAfterWrite=false" \
+--conf "spark.streaming.receiver.writeAheadLog.enable=false" \
 --conf "spark.streaming.unpersist=true" \
 --conf "spark.streaming.ui.retainedBatches=10" \
 --conf "spark.ui.retainedJobs=10" \
@@ -55,9 +66,9 @@ spark-submit \
 --conf "spark.executor.heartbeatInterval=360000" \
 --conf "spark.network.timeout=420000" \
 --conf "spark.cleaner.ttl=120" \
---conf "spark.streaming.backpressure.enabled=true" \
+--conf "spark.streaming.backpressure.enabled=false" \
 --supervise \
-RealTime_Load-assembly-1.0-SNAPSHOT.jar -e=prod --class=com.indeed.dataengineering.task.$cname --checkpoint
+RealTime_Load-assembly-1.0-SNAPSHOT.jar -e=prod --class=com.indeed.dataengineering.task.Generic --runClass=com.indeed.dataengineering.task.$cname $executeMode $skipMetadata $checkpoint
 
 
 
@@ -70,10 +81,10 @@ spark-submit \
 --name RealTime_Load \
 --master yarn \
 --deploy-mode client \
---driver-memory=10g \
---num-executors=2 \
+--driver-memory=1g \
+--num-executors=1 \
 --executor-cores=1 \
---executor-memory=5g \
+--executor-memory=1g \
 RealTime_Load-assembly-1.0-SNAPSHOT.jar -e=prod --db=$db --table=$tbl --pk=$pk
 
 

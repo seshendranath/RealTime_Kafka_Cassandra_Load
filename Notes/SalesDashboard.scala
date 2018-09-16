@@ -585,6 +585,9 @@ tblADCaccounts_salesrep_commissionsCT.persist
 tblADCaccounts_salesrep_commissionsCT.count
 tblADCaccounts_salesrep_commissionsCT.createOrReplaceTempView("tblADCaccounts_salesrep_commissionsCT")
 
+// var last_dt_modified = sql("SELECT CAST(MAX(date_modified) AS STRING) FROM tblADCaccounts_salesrep_commissionsCT").collect.head.get(0).toString
+// tblADCaccounts_salesrep_commissionsCT.where(s"date_modified < '$last_dt_modified'").createOrReplaceTempView("tblADCaccounts_salesrep_commissionsCT")
+
 
 val tblCRMgeneric_product_creditCT = spark.read.format("org.apache.spark.sql.cassandra").options(Map("table" -> "tblcrmgeneric_product_credit", "keyspace" -> "adcentraldb")).load.select(
   $"activity_date".as("date")
@@ -599,6 +602,9 @@ val tblCRMgeneric_product_creditCT = spark.read.format("org.apache.spark.sql.cas
 tblCRMgeneric_product_creditCT.persist
 tblCRMgeneric_product_creditCT.count
 tblCRMgeneric_product_creditCT.createOrReplaceTempView("tblCRMgeneric_product_creditCT")
+
+// last_dt_modified = sql("SELECT CAST(MAX(date_modified) AS STRING) FROM tblCRMgeneric_product_creditCT").collect.head.get(0).toString
+// tblCRMgeneric_product_creditCT.where(s"date_modified < '$last_dt_modified'").createOrReplaceTempView("tblCRMgeneric_product_creditCT")
 
 
 val tblADCadvertiser_rep_revenuesCT = spark.read.format("org.apache.spark.sql.cassandra").options(Map("table" -> "tbladcadvertiser_rep_revenues", "keyspace" -> "adcentraldb")).load.select(
@@ -615,10 +621,13 @@ tblADCadvertiser_rep_revenuesCT.persist
 tblADCadvertiser_rep_revenuesCT.count
 tblADCadvertiser_rep_revenuesCT.createOrReplaceTempView("tblADCadvertiser_rep_revenuesCT")
 
+// last_dt_modified = sql("SELECT CAST(MAX(date_modified) AS STRING) FROM tblADCadvertiser_rep_revenuesCT").collect.head.get(0).toString
+// tblADCadvertiser_rep_revenuesCT.where(s"date_modified < '$last_dt_modified'").createOrReplaceTempView("tblADCadvertiser_rep_revenuesCT")
 
-val tblADCaccounts_salesrep_commissions_dt_modified = sql("SELECT MAX(date_modified) FROM tblADCaccounts_salesrep_commissionsCT").collect.head.get(0).toString
-val tblCRMgeneric_product_credit_dt_modified = sql("SELECT MAX(date_modified) FROM tblCRMgeneric_product_creditCT").collect.head.get(0).toString
-val tblADCadvertiser_rep_revenues_dt_modified = sql("SELECT MAX(date_modified) FROM tblADCadvertiser_rep_revenuesCT").collect.head.get(0).toString
+
+val tblADCaccounts_salesrep_commissions_dt_modified = sql("SELECT CAST(MAX(date_modified) AS STRING) FROM tblADCaccounts_salesrep_commissionsCT").collect.head.get(0).toString
+val tblCRMgeneric_product_credit_dt_modified = sql("SELECT CAST(MAX(date_modified) AS STRING) FROM tblCRMgeneric_product_creditCT").collect.head.get(0).toString
+val tblADCadvertiser_rep_revenues_dt_modified = sql("SELECT CAST(MAX(date_modified) AS STRING) FROM tblADCadvertiser_rep_revenuesCT").collect.head.get(0).toString
 
 val db = "adcentraldb"
 val tbl = "tblADCaccounts_salesrep_commissions"
@@ -631,6 +640,27 @@ val (topic, partition, offset) = (res.getString("topic"), res.getInt("partition"
 val cQuery = s"INSERT INTO metadata.streaming_metadata (job, db, tbl, topic, partition, offset) VALUES('SalesSummary_Load', '$db', '$tbl', '$topic', $partition, $offset)"
 session.execute(cQuery)
 
+val db = "adcentraldb"
+val tbl = "tblCRMgeneric_product_credit"
+val dt_modified = tblCRMgeneric_product_credit_dt_modified
+
+val cQuery = s"SELECT MAX(topic) AS topic, MAX(partition) AS partition, MAX(offset) AS offset FROM metadata.kafka_metadata WHERE db = '$db' AND tbl = '$tbl' AND tbl_date_modified = '$dt_modified'"
+val res = session.execute(cQuery).all.asScala.toArray.head
+val (topic, partition, offset) = (res.getString("topic"), res.getInt("partition"), res.getLong("offset"))
+
+val cQuery = s"INSERT INTO metadata.streaming_metadata (job, db, tbl, topic, partition, offset) VALUES('SalesSummary_Load', '$db', '$tbl', '$topic', $partition, $offset)"
+session.execute(cQuery)
+
+val db = "adcentraldb"
+val tbl = "tblADCadvertiser_rep_revenues"
+val dt_modified = tblADCadvertiser_rep_revenues_dt_modified
+
+val cQuery = s"SELECT MAX(topic) AS topic, MAX(partition) AS partition, MAX(offset) AS offset FROM metadata.kafka_metadata WHERE db = '$db' AND tbl = '$tbl' AND tbl_date_modified = '$dt_modified'"
+val res = session.execute(cQuery).all.asScala.toArray.head
+val (topic, partition, offset) = (res.getString("topic"), res.getInt("partition"), res.getLong("offset"))
+
+val cQuery = s"INSERT INTO metadata.streaming_metadata (job, db, tbl, topic, partition, offset) VALUES('SalesSummary_Load', '$db', '$tbl', '$topic', $partition, $offset)"
+session.execute(cQuery)
 
 var query =
   """

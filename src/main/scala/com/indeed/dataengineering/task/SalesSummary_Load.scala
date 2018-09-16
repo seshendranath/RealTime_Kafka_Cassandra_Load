@@ -10,12 +10,13 @@ import com.indeed.dataengineering.AnalyticsTaskApp._
 import org.apache.spark.sql._
 import com.indeed.dataengineering.models._
 import com.datastax.spark.connector.cql.CassandraConnector
+import com.indeed.dataengineering.utilities.Utils.getMetaQueries
 import org.apache.spark.sql.functions.{log => _, _}
 
 
 class SalesSummary_Load {
 
-  def run(): Unit = {
+  def run(rawData: DataFrame, connector: CassandraConnector, partitions: Set[Int]): Unit = {
 
     import spark.implicits._
 
@@ -23,27 +24,10 @@ class SalesSummary_Load {
 
     val checkpointDir = conf("checkpointBaseLoc") + this.getClass.getSimpleName
 
-    val Array(brokers, topics) = Array(conf("kafka.brokers"), conf("kafka.topic"))
-    log.info(s"Initialized the Kafka brokers and topics to $brokers and $topics")
+    val className = this.getClass.getSimpleName
 
     log.info("Setting spark.cassandra.connection.host")
     spark.conf.set("spark.cassandra.connection.host", conf("cassandra.host"))
-
-    log.info(s"Create Cassandra connector by passing host as ${conf("cassandra.host")}")
-    val connector = CassandraConnector(spark.sparkContext.getConf.set("spark.cassandra.connection.host", conf("cassandra.host")))
-
-    log.info("Read Kafka streams")
-    val kafkaStream = spark
-      .readStream
-      .format("kafka")
-      .option("kafka.bootstrap.servers", brokers)
-      .option("subscribe", topics).option("failOnDataLoss", "false")
-      .load()
-    //.option("startingOffsets", s""" {"${conf("kafka.topic")}":{"0":-1}} """)
-
-    log.info("Extract value and map from Kafka consumer records")
-    val rawData = kafkaStream.selectExpr("CAST(key AS STRING)", "CAST(value AS STRING)").as[(String, String)].map(_._2)
-
 
     log.info("Defining new ForeachWriter for Sales_Revenue_Summary")
     val Sales_Revenue_SummaryWriter = new ForeachWriter[Sales_Revenue_Summary] {
@@ -51,6 +35,9 @@ class SalesSummary_Load {
       def open(partitionId: Long, version: Long): Boolean = true
 
       def process(value: Sales_Revenue_Summary): Unit = {
+
+        val metaQuery = getMetaQueries(className, value.db, value.tbl, value.topic, value.partition, value.offset)
+
         val total_revenue = value.sales_revenue + value.agency_revenue + value.strategic_revenue + value.sales_new_revenue
         val cQuery1 = s"update adcentraldb.sales_revenue_summary_by_user_quarter SET total_revenue = total_revenue + $total_revenue, sales_revenue = sales_revenue + ${value.sales_revenue}, agency_revenue = agency_revenue + ${value.agency_revenue}, strategic_revenue = strategic_revenue + ${value.strategic_revenue}, sales_new_revenue = sales_new_revenue + ${value.sales_new_revenue} WHERE year = ${value.year} AND quarter = ${value.quarter} AND user_id = ${value.user_id}"
         val cQuery2 = s"update adcentraldb.sales_revenue_summary_by_quarter SET total_revenue = total_revenue + $total_revenue, sales_revenue = sales_revenue + ${value.sales_revenue}, agency_revenue = agency_revenue + ${value.agency_revenue}, strategic_revenue = strategic_revenue + ${value.strategic_revenue}, sales_new_revenue = sales_new_revenue + ${value.sales_new_revenue} WHERE year = ${value.year} AND quarter = ${value.quarter}"
@@ -60,6 +47,7 @@ class SalesSummary_Load {
         connector.withSessionDo { session =>
           session.execute(cQuery1)
           session.execute(cQuery2)
+          session.execute(metaQuery)
           val cRow1 = session.execute(cQuery3).one
           val total_revenue_user_quarter = if (cRow1 != null && cRow1.getObject("total_revenue") != null) BigInt(cRow1.getObject("total_revenue").toString) else BigInt(0)
           session.execute(s"update adcentraldb.sales_revenue_quota_summary_by_user_quarter SET total_revenue = $total_revenue_user_quarter WHERE year = ${value.year} AND quarter = ${value.quarter} AND user_id = ${value.user_id}")
@@ -92,7 +80,6 @@ class SalesSummary_Load {
     }
 
 
-
     log.info("Reading adsystemdb.tbladscurrency_rates from cassandra")
     val statictblADScurrency_rates = spark.read.format("org.apache.spark.sql.cassandra").options(Map("table" -> "tbladscurrency_rates", "keyspace" -> "adsystemdb")).load.select("activity_date", "from_currency", "exchange_rate").distinct.repartition(1)
     statictblADScurrency_rates.persist
@@ -111,9 +98,8 @@ class SalesSummary_Load {
     }
 
 
-
     log.info("Reading tblADCaccounts_salesrep_commissions from kafka streams")
-    val tblADCaccounts_salesrep_commissions = rawData.select(from_json($"value", TblADCaccounts_salesrep_commissions.jsonSchema).as("value")).filter($"value.table" === "tblADCaccounts_salesrep_commissions").select($"value.type".as("opType")
+    val tblADCaccounts_salesrep_commissions = rawData.select($"topic", $"partition", $"offset", from_json($"value", TblADCaccounts_salesrep_commissions.jsonSchema).as("value")).filter($"value.table" === "tblADCaccounts_salesrep_commissions").select($"topic", $"partition", $"offset", $"value.type".as("opType")
       , $"value.data.date"
       , $"value.data.salesrep_id".as("user_id")
       , $"value.data.advertiser_id"
@@ -139,7 +125,12 @@ class SalesSummary_Load {
     val tblADCaccounts_salesrep_commissionsSummarySql =
       """
         |SELECT
-        |      YEAR(date) AS year
+        |      "adcentraldb" AS db
+        |     ,"tblADCaccounts_salesrep_commissions" AS tbl
+        |     ,topic
+        |     ,partition
+        |     ,offset
+        |     ,YEAR(date) AS year
         |     ,QUARTER(date) AS quarter
         |     ,user_id
         |     ,CASE WHEN opType = 'insert' THEN
@@ -191,134 +182,139 @@ class SalesSummary_Load {
 
 
 
-    val tblADCaccounts_salesrep_commissionsSummaryDebugSql =
-      """
-        |SELECT
-        |      YEAR(date) AS year
-        |     ,QUARTER(date) AS quarter
-        |     ,user_id
-        |     ,opType
-        |     ,revenue_jobsearch_millicents
-        |     ,revenue_resume_millicents
-        |     ,revenue_dradis_lifetime_millicents
-        |     ,revenue_dradis_recurring_millicents
-        |     ,old_revenue_jobsearch_millicents
-        |     ,old_revenue_resume_millicents
-        |     ,old_revenue_dradis_lifetime_millicents
-        |     ,old_revenue_dradis_recurring_millicents
-        |     ,newrevenue_jobsearch_millicents
-        |     ,newrevenue_resume_millicents
-        |     ,newrevenue_dradis_lifetime_millicents
-        |     ,newrevenue_dradis_recurring_millicents
-        |     ,old_newrevenue_jobsearch_millicents
-        |     ,old_newrevenue_resume_millicents
-        |     ,old_newrevenue_dradis_lifetime_millicents
-        |     ,old_newrevenue_dradis_recurring_millicents
-        |     ,CASE WHEN opType = 'insert' THEN
-        |                                       COALESCE(revenue_jobsearch_millicents, 0) +
-        |                                       COALESCE(revenue_resume_millicents, 0) +
-        |                                       COALESCE(revenue_dradis_lifetime_millicents, 0) +
-        |                                       COALESCE(revenue_dradis_recurring_millicents, 0)
-        |           WHEN opType = 'update' THEN
-        |                                       (COALESCE(revenue_jobsearch_millicents, 0 ) - COALESCE(old_revenue_jobsearch_millicents, revenue_jobsearch_millicents)) +
-        |                                       (COALESCE(revenue_resume_millicents, 0 ) - COALESCE(old_revenue_resume_millicents, revenue_resume_millicents)) +
-        |                                       (COALESCE(revenue_dradis_lifetime_millicents, 0 ) - COALESCE(old_revenue_dradis_lifetime_millicents, revenue_dradis_lifetime_millicents)) +
-        |                                       (COALESCE(revenue_dradis_recurring_millicents, 0 ) - COALESCE(old_revenue_dradis_recurring_millicents, revenue_dradis_recurring_millicents))
-        |           ELSE
-        |                                       -(COALESCE(revenue_jobsearch_millicents, 0) +
-        |                                       COALESCE(revenue_resume_millicents, 0) +
-        |                                       COALESCE(revenue_dradis_lifetime_millicents, 0) +
-        |                                       COALESCE(revenue_dradis_recurring_millicents, 0))
-        |           END AS sales_revenue
-        |     ,0 AS agency_revenue
-        |     ,0 AS strategic_revenue
-        |     ,CASE WHEN opType = 'insert' THEN
-        |                                       COALESCE(newrevenue_jobsearch_millicents, 0) +
-        |                                       COALESCE(newrevenue_dradis_lifetime_millicents, 0) +
-        |                                       COALESCE(newrevenue_dradis_recurring_millicents, 0) +
-        |                                       COALESCE(newrevenue_resume_millicents, 0)
-        |           WHEN opType = 'update' THEN
-        |                                       (COALESCE(newrevenue_jobsearch_millicents, 0 ) - COALESCE(old_newrevenue_jobsearch_millicents, newrevenue_jobsearch_millicents)) +
-        |                                       (COALESCE(newrevenue_dradis_lifetime_millicents, 0 ) - COALESCE(old_newrevenue_dradis_lifetime_millicents, newrevenue_dradis_lifetime_millicents)) +
-        |                                       (COALESCE(newrevenue_dradis_recurring_millicents, 0 ) - COALESCE(old_newrevenue_dradis_recurring_millicents, newrevenue_dradis_recurring_millicents)) +
-        |                                       (COALESCE(newrevenue_resume_millicents, 0 ) - COALESCE(old_newrevenue_resume_millicents, newrevenue_resume_millicents))
-        |           ELSE
-        |                                       -(COALESCE(newrevenue_jobsearch_millicents, 0) +
-        |                                       COALESCE(newrevenue_dradis_lifetime_millicents, 0) +
-        |                                       COALESCE(newrevenue_dradis_recurring_millicents, 0) +
-        |                                       COALESCE(newrevenue_resume_millicents, 0))
-        |           END AS sales_new_revenue
-        |FROM tblADCaccounts_salesrep_commissions a
-        |LEFT OUTER JOIN (SELECT id FROM staticTestAdvertiserIds UNION SELECT id FROM streamTestAdvertiserIds) b
-        |ON a.advertiser_id = b.id
-        |WHERE b.id IS NULL
-      """.stripMargin
-
-    log.info(s"Running Streaming Query: $tblADCaccounts_salesrep_commissionsSummaryDebugSql")
-    if (conf.getOrElse("debug", "false") == "true") sql(tblADCaccounts_salesrep_commissionsSummaryDebugSql).as[Sales_Revenue_Summary].writeStream.format("console").outputMode("append").start()
-
-    val tblADCaccounts_salesrep_commissionsSummaryDebugSql1 =
-      """
-        |SELECT
-        |      count(*) AS cnt
-        |     ,SUM(CASE WHEN opType = 'insert' THEN
-        |                                       COALESCE(revenue_jobsearch_millicents, 0) +
-        |                                       COALESCE(revenue_resume_millicents, 0) +
-        |                                       COALESCE(revenue_dradis_lifetime_millicents, 0) +
-        |                                       COALESCE(revenue_dradis_recurring_millicents, 0)
-        |           WHEN opType = 'update' THEN
-        |                                       (COALESCE(revenue_jobsearch_millicents, 0 ) - COALESCE(old_revenue_jobsearch_millicents, revenue_jobsearch_millicents)) +
-        |                                       (COALESCE(revenue_resume_millicents, 0 ) - COALESCE(old_revenue_resume_millicents, revenue_resume_millicents)) +
-        |                                       (COALESCE(revenue_dradis_lifetime_millicents, 0 ) - COALESCE(old_revenue_dradis_lifetime_millicents, revenue_dradis_lifetime_millicents)) +
-        |                                       (COALESCE(revenue_dradis_recurring_millicents, 0 ) - COALESCE(old_revenue_dradis_recurring_millicents, revenue_dradis_recurring_millicents))
-        |           ELSE
-        |                                       -(COALESCE(revenue_jobsearch_millicents, 0) +
-        |                                       COALESCE(revenue_resume_millicents, 0) +
-        |                                       COALESCE(revenue_dradis_lifetime_millicents, 0) +
-        |                                       COALESCE(revenue_dradis_recurring_millicents, 0))
-        |           END) AS sales_revenue
-        |       ,SUM(CASE WHEN opType = 'insert' THEN
-        |                                       COALESCE(newrevenue_jobsearch_millicents, 0) +
-        |                                       COALESCE(newrevenue_dradis_lifetime_millicents, 0) +
-        |                                       COALESCE(newrevenue_dradis_recurring_millicents, 0) +
-        |                                       COALESCE(newrevenue_resume_millicents, 0)
-        |           WHEN opType = 'update' THEN
-        |                                       (COALESCE(newrevenue_jobsearch_millicents, 0 ) - COALESCE(old_newrevenue_jobsearch_millicents, newrevenue_jobsearch_millicents)) +
-        |                                       (COALESCE(newrevenue_dradis_lifetime_millicents, 0 ) - COALESCE(old_newrevenue_dradis_lifetime_millicents, newrevenue_dradis_lifetime_millicents)) +
-        |                                       (COALESCE(newrevenue_dradis_recurring_millicents, 0 ) - COALESCE(old_newrevenue_dradis_recurring_millicents, newrevenue_dradis_recurring_millicents)) +
-        |                                       (COALESCE(newrevenue_resume_millicents, 0 ) - COALESCE(old_newrevenue_resume_millicents, newrevenue_resume_millicents))
-        |           ELSE
-        |                                       -(COALESCE(newrevenue_jobsearch_millicents, 0) +
-        |                                       COALESCE(newrevenue_dradis_lifetime_millicents, 0) +
-        |                                       COALESCE(newrevenue_dradis_recurring_millicents, 0) +
-        |                                       COALESCE(newrevenue_resume_millicents, 0))
-        |           END)  AS sales_new_revenue
-        |FROM tblADCaccounts_salesrep_commissions a
-        |LEFT OUTER JOIN (SELECT id FROM staticTestAdvertiserIds UNION SELECT id FROM streamTestAdvertiserIds) b
-        |ON a.advertiser_id = b.id
-        |WHERE b.id IS NULL
-      """.stripMargin
-
-    log.info(s"Running Streaming Query: $tblADCaccounts_salesrep_commissionsSummaryDebugSql1")
-    if (conf.getOrElse("debug", "false") == "true") sql(tblADCaccounts_salesrep_commissionsSummaryDebugSql1).writeStream.format("console").outputMode("complete").start()
+    //    val tblADCaccounts_salesrep_commissionsSummaryDebugSql =
+    //      """
+    //        |SELECT
+    //        |      YEAR(date) AS year
+    //        |     ,QUARTER(date) AS quarter
+    //        |     ,user_id
+    //        |     ,opType
+    //        |     ,revenue_jobsearch_millicents
+    //        |     ,revenue_resume_millicents
+    //        |     ,revenue_dradis_lifetime_millicents
+    //        |     ,revenue_dradis_recurring_millicents
+    //        |     ,old_revenue_jobsearch_millicents
+    //        |     ,old_revenue_resume_millicents
+    //        |     ,old_revenue_dradis_lifetime_millicents
+    //        |     ,old_revenue_dradis_recurring_millicents
+    //        |     ,newrevenue_jobsearch_millicents
+    //        |     ,newrevenue_resume_millicents
+    //        |     ,newrevenue_dradis_lifetime_millicents
+    //        |     ,newrevenue_dradis_recurring_millicents
+    //        |     ,old_newrevenue_jobsearch_millicents
+    //        |     ,old_newrevenue_resume_millicents
+    //        |     ,old_newrevenue_dradis_lifetime_millicents
+    //        |     ,old_newrevenue_dradis_recurring_millicents
+    //        |     ,CASE WHEN opType = 'insert' THEN
+    //        |                                       COALESCE(revenue_jobsearch_millicents, 0) +
+    //        |                                       COALESCE(revenue_resume_millicents, 0) +
+    //        |                                       COALESCE(revenue_dradis_lifetime_millicents, 0) +
+    //        |                                       COALESCE(revenue_dradis_recurring_millicents, 0)
+    //        |           WHEN opType = 'update' THEN
+    //        |                                       (COALESCE(revenue_jobsearch_millicents, 0 ) - COALESCE(old_revenue_jobsearch_millicents, revenue_jobsearch_millicents)) +
+    //        |                                       (COALESCE(revenue_resume_millicents, 0 ) - COALESCE(old_revenue_resume_millicents, revenue_resume_millicents)) +
+    //        |                                       (COALESCE(revenue_dradis_lifetime_millicents, 0 ) - COALESCE(old_revenue_dradis_lifetime_millicents, revenue_dradis_lifetime_millicents)) +
+    //        |                                       (COALESCE(revenue_dradis_recurring_millicents, 0 ) - COALESCE(old_revenue_dradis_recurring_millicents, revenue_dradis_recurring_millicents))
+    //        |           ELSE
+    //        |                                       -(COALESCE(revenue_jobsearch_millicents, 0) +
+    //        |                                       COALESCE(revenue_resume_millicents, 0) +
+    //        |                                       COALESCE(revenue_dradis_lifetime_millicents, 0) +
+    //        |                                       COALESCE(revenue_dradis_recurring_millicents, 0))
+    //        |           END AS sales_revenue
+    //        |     ,0 AS agency_revenue
+    //        |     ,0 AS strategic_revenue
+    //        |     ,CASE WHEN opType = 'insert' THEN
+    //        |                                       COALESCE(newrevenue_jobsearch_millicents, 0) +
+    //        |                                       COALESCE(newrevenue_dradis_lifetime_millicents, 0) +
+    //        |                                       COALESCE(newrevenue_dradis_recurring_millicents, 0) +
+    //        |                                       COALESCE(newrevenue_resume_millicents, 0)
+    //        |           WHEN opType = 'update' THEN
+    //        |                                       (COALESCE(newrevenue_jobsearch_millicents, 0 ) - COALESCE(old_newrevenue_jobsearch_millicents, newrevenue_jobsearch_millicents)) +
+    //        |                                       (COALESCE(newrevenue_dradis_lifetime_millicents, 0 ) - COALESCE(old_newrevenue_dradis_lifetime_millicents, newrevenue_dradis_lifetime_millicents)) +
+    //        |                                       (COALESCE(newrevenue_dradis_recurring_millicents, 0 ) - COALESCE(old_newrevenue_dradis_recurring_millicents, newrevenue_dradis_recurring_millicents)) +
+    //        |                                       (COALESCE(newrevenue_resume_millicents, 0 ) - COALESCE(old_newrevenue_resume_millicents, newrevenue_resume_millicents))
+    //        |           ELSE
+    //        |                                       -(COALESCE(newrevenue_jobsearch_millicents, 0) +
+    //        |                                       COALESCE(newrevenue_dradis_lifetime_millicents, 0) +
+    //        |                                       COALESCE(newrevenue_dradis_recurring_millicents, 0) +
+    //        |                                       COALESCE(newrevenue_resume_millicents, 0))
+    //        |           END AS sales_new_revenue
+    //        |FROM tblADCaccounts_salesrep_commissions a
+    //        |LEFT OUTER JOIN (SELECT id FROM staticTestAdvertiserIds UNION SELECT id FROM streamTestAdvertiserIds) b
+    //        |ON a.advertiser_id = b.id
+    //        |WHERE b.id IS NULL
+    //      """.stripMargin
+    //
+    //    log.info(s"Running Streaming Query: $tblADCaccounts_salesrep_commissionsSummaryDebugSql")
+    //    if (conf.getOrElse("debug", "false") == "true") sql(tblADCaccounts_salesrep_commissionsSummaryDebugSql).as[Sales_Revenue_Summary].writeStream.format("console").outputMode("append").start()
+    //
+    //    val tblADCaccounts_salesrep_commissionsSummaryDebugSql1 =
+    //      """
+    //        |SELECT
+    //        |      count(*) AS cnt
+    //        |     ,SUM(CASE WHEN opType = 'insert' THEN
+    //        |                                       COALESCE(revenue_jobsearch_millicents, 0) +
+    //        |                                       COALESCE(revenue_resume_millicents, 0) +
+    //        |                                       COALESCE(revenue_dradis_lifetime_millicents, 0) +
+    //        |                                       COALESCE(revenue_dradis_recurring_millicents, 0)
+    //        |           WHEN opType = 'update' THEN
+    //        |                                       (COALESCE(revenue_jobsearch_millicents, 0 ) - COALESCE(old_revenue_jobsearch_millicents, revenue_jobsearch_millicents)) +
+    //        |                                       (COALESCE(revenue_resume_millicents, 0 ) - COALESCE(old_revenue_resume_millicents, revenue_resume_millicents)) +
+    //        |                                       (COALESCE(revenue_dradis_lifetime_millicents, 0 ) - COALESCE(old_revenue_dradis_lifetime_millicents, revenue_dradis_lifetime_millicents)) +
+    //        |                                       (COALESCE(revenue_dradis_recurring_millicents, 0 ) - COALESCE(old_revenue_dradis_recurring_millicents, revenue_dradis_recurring_millicents))
+    //        |           ELSE
+    //        |                                       -(COALESCE(revenue_jobsearch_millicents, 0) +
+    //        |                                       COALESCE(revenue_resume_millicents, 0) +
+    //        |                                       COALESCE(revenue_dradis_lifetime_millicents, 0) +
+    //        |                                       COALESCE(revenue_dradis_recurring_millicents, 0))
+    //        |           END) AS sales_revenue
+    //        |       ,SUM(CASE WHEN opType = 'insert' THEN
+    //        |                                       COALESCE(newrevenue_jobsearch_millicents, 0) +
+    //        |                                       COALESCE(newrevenue_dradis_lifetime_millicents, 0) +
+    //        |                                       COALESCE(newrevenue_dradis_recurring_millicents, 0) +
+    //        |                                       COALESCE(newrevenue_resume_millicents, 0)
+    //        |           WHEN opType = 'update' THEN
+    //        |                                       (COALESCE(newrevenue_jobsearch_millicents, 0 ) - COALESCE(old_newrevenue_jobsearch_millicents, newrevenue_jobsearch_millicents)) +
+    //        |                                       (COALESCE(newrevenue_dradis_lifetime_millicents, 0 ) - COALESCE(old_newrevenue_dradis_lifetime_millicents, newrevenue_dradis_lifetime_millicents)) +
+    //        |                                       (COALESCE(newrevenue_dradis_recurring_millicents, 0 ) - COALESCE(old_newrevenue_dradis_recurring_millicents, newrevenue_dradis_recurring_millicents)) +
+    //        |                                       (COALESCE(newrevenue_resume_millicents, 0 ) - COALESCE(old_newrevenue_resume_millicents, newrevenue_resume_millicents))
+    //        |           ELSE
+    //        |                                       -(COALESCE(newrevenue_jobsearch_millicents, 0) +
+    //        |                                       COALESCE(newrevenue_dradis_lifetime_millicents, 0) +
+    //        |                                       COALESCE(newrevenue_dradis_recurring_millicents, 0) +
+    //        |                                       COALESCE(newrevenue_resume_millicents, 0))
+    //        |           END)  AS sales_new_revenue
+    //        |FROM tblADCaccounts_salesrep_commissions a
+    //        |LEFT OUTER JOIN (SELECT id FROM staticTestAdvertiserIds UNION SELECT id FROM streamTestAdvertiserIds) b
+    //        |ON a.advertiser_id = b.id
+    //        |WHERE b.id IS NULL
+    //      """.stripMargin
+    //
+    //    log.info(s"Running Streaming Query: $tblADCaccounts_salesrep_commissionsSummaryDebugSql1")
+    //    if (conf.getOrElse("debug", "false") == "true") sql(tblADCaccounts_salesrep_commissionsSummaryDebugSql1).writeStream.format("console").outputMode("complete").start()
 
 
     log.info("Reading tblCRMgeneric_product_credit from kafka streams")
-    val tblCRMgeneric_product_credit = rawData.select(from_json($"value", TblCRMgeneric_product_credit.jsonSchema).as("value")).filter($"value.table" === "tblCRMgeneric_product_credit").select($"value.type".as("opType")
+    val tblCRMgeneric_product_credit = rawData.select($"topic", $"partition", $"offset", from_json($"value", TblCRMgeneric_product_credit.jsonSchema).as("value")).filter($"value.table" === "tblCRMgeneric_product_credit").select($"topic", $"partition", $"offset", $"value.type".as("opType")
       , $"value.data.activity_date".as("date")
       , $"value.data.user_id"
       , $"value.data.relationship"
       , $"value.data.currency"
       , $"value.data.rejected"
       , $"value.data.revenue_generic_product_local"
-      , $"value.old.revenue_generic_product_local".as("old_revenue_generic_product_local")).where("opType IN ('insert', 'update', 'delete')")
+      , $"value.old.revenue_generic_product_local".as("old_revenue_generic_product_local")).where("opType IN ('insert', 'update', 'delete') AND relationship in ('SALES_REP', 'STRATEGIC_REP', 'AGENCY_REP') AND rejected = 0")
 
     tblCRMgeneric_product_credit.createOrReplaceTempView("tblCRMgeneric_product_credit")
 
     val tblCRMgeneric_product_creditSummarySql =
       """
         |SELECT
-        |      YEAR(date) AS year
+        |      "adcentraldb" AS db
+        |     ,"tblCRMgeneric_product_credit" AS tbl
+        |     ,topic
+        |     ,partition
+        |     ,offset
+        |     ,YEAR(date) AS year
         |     ,QUARTER(date) AS quarter
         |     ,user_id
         |     ,CASE WHEN relationship IN ('SALES_REP', 'STRATEGIC_REP') THEN CAST(((total_local * exchange_rate) / 1000) AS BIGINT) ELSE 0 END AS sales_revenue
@@ -327,7 +323,10 @@ class SalesSummary_Load {
         |     ,0 AS sales_new_revenue
         |FROM
         |(SELECT
-        |      date
+        |      topic
+        |     ,partition
+        |     ,offset
+        |     ,date
         |     ,user_id
         |     ,currency
         |     ,relationship
@@ -336,7 +335,6 @@ class SalesSummary_Load {
         |           ELSE -COALESCE(revenue_generic_product_local, 0)
         |           END AS total_local
         |FROM tblCRMgeneric_product_credit
-        |WHERE relationship in ('SALES_REP', 'STRATEGIC_REP', 'AGENCY_REP') and rejected = 0
         |) arr
         |INNER JOIN (SELECT * FROM statictblADScurrency_rates UNION SELECT * FROM streamtblADScurrency_rates) er
         |ON arr.date = er.activity_date AND arr.currency = er.from_currency
@@ -350,9 +348,8 @@ class SalesSummary_Load {
     }
 
 
-
     log.info("Reading tblADCadvertiser_rep_revenues from kafka streams")
-    val tblADCadvertiser_rep_revenues = rawData.select(from_json($"value", TblADCadvertiser_rep_revenues.jsonSchema).as("value")).filter($"value.table" === "tblADCadvertiser_rep_revenues").select($"value.type".as("opType")
+    val tblADCadvertiser_rep_revenues = rawData.select($"topic", $"partition", $"offset", from_json($"value", TblADCadvertiser_rep_revenues.jsonSchema).as("value")).filter($"value.table" === "tblADCadvertiser_rep_revenues").select($"topic", $"partition", $"offset", $"value.type".as("opType")
       , $"value.data.activity_date".as("date")
       , $"value.data.user_id"
       , $"value.data.advertiser_id"
@@ -367,7 +364,12 @@ class SalesSummary_Load {
     val tblADCadvertiser_rep_revenuesSummarySql =
       """
         |SELECT
-        |      year
+        |      "adcentraldb" AS db
+        |     ,"tblADCadvertiser_rep_revenues" AS tbl
+        |     ,topic
+        |     ,partition
+        |     ,offset
+        |     ,year
         |     ,quarter
         |     ,user_id
         |     ,0 AS sales_revenue
@@ -377,7 +379,10 @@ class SalesSummary_Load {
         |FROM
         |(
         |SELECT
-        |      YEAR(date) AS year
+        |      topic
+        |     ,partition
+        |     ,offset
+        |     ,YEAR(date) AS year
         |     ,QUARTER(date) AS quarter
         |     ,user_id
         |     ,relationship
@@ -402,7 +407,6 @@ class SalesSummary_Load {
     } else {
       sql(tblADCadvertiser_rep_revenuesSummarySql).as[Sales_Revenue_Summary].writeStream.foreach(Sales_Revenue_SummaryWriter).outputMode("append").start()
     }
-
 
 
     log.info("Await Any Stream Query Termination")

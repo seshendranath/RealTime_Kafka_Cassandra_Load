@@ -1,4 +1,65 @@
 // Testing Real Time Sales Dashboard in Spark Shell
+/* 
+1. Stop the Sales Summary Streaming Job
+2. DROP ALL Sales Summary tables
+3. Recreate all Sales Summary tables
+4. Run manual job in EMR
+5. Update all offsets
+6. Restart Sales Summary Job
+
+Run this in cassandra:
+
+DROP TABLE adcentraldb.sales_revenue_summary_by_user_quarter;
+DROP TABLE adcentraldb.sales_revenue_quota_summary_by_user_quarter;
+DROP TABLE adcentraldb.sales_revenue_summary_by_quarter;
+DROP TABLE adcentraldb.sales_revenue_quota_summary_by_quarter;
+
+CREATE TABLE adcentraldb.sales_revenue_summary_by_user_quarter
+(
+    year Int,
+    quarter Int,
+    user_id BigInt,
+    sales_revenue COUNTER,
+    agency_revenue COUNTER,
+    strategic_revenue COUNTER,
+    sales_new_revenue COUNTER,
+    total_revenue COUNTER,
+    PRIMARY KEY(year, quarter, user_id)
+);
+
+CREATE TABLE adcentraldb.sales_revenue_quota_summary_by_user_quarter
+(
+    year Int,
+    quarter Int,
+    user_id BigInt,
+    quota Decimal,
+    total_revenue BigInt,
+    PRIMARY KEY(year, quarter, user_id)
+);
+
+
+CREATE TABLE adcentraldb.sales_revenue_summary_by_quarter
+(
+    year Int,
+    quarter Int,
+    sales_revenue COUNTER,
+    agency_revenue COUNTER,
+    strategic_revenue COUNTER,
+    sales_new_revenue COUNTER,
+    total_revenue COUNTER,
+    PRIMARY KEY(year, quarter)
+);
+
+
+CREATE TABLE adcentraldb.sales_revenue_quota_summary_by_quarter
+(
+    year Int,
+    quarter Int,
+    quota Decimal,
+    total_revenue BigInt,
+    PRIMARY KEY(year, quarter)
+);
+*/
 import kafka.serializer.StringDecoder
 import org.apache.spark.streaming._
 import org.apache.spark.streaming.kafka010._
@@ -18,11 +79,12 @@ import java.text.SimpleDateFormat
 import org.apache.spark.sql.Row
 import com.datastax.spark.connector.cql.CassandraConnector
 import com.datastax.driver.core._
-import scala.collection.mutable
 import org.apache.spark.sql.types._
+import scala.collection.mutable
+import collection.JavaConverters._
 
 
-spark.conf.set("spark.sql.shuffle.partitions", "128")
+spark.conf.set("spark.sql.shuffle.partitions", "160")
 spark.conf.set("spark.cassandra.input.consistency.level", "LOCAL_ONE")
 spark.conf.set("spark.cassandra.output.consistency.level", "LOCAL_ONE")
 
@@ -37,6 +99,9 @@ spark.conf.set("spark.streaming.kafka.maxRatePerPartition", 100)
 val Array(brokers, topics) = Array("ec2-54-160-85-68.compute-1.amazonaws.com:9092,ec2-54-226-72-146.compute-1.amazonaws.com:9092", "maxwell")
 
 val timestampFormat = new SimpleDateFormat("yyyy-MM-dd' 'HH:mm:ss")
+
+val cluster = Cluster.builder().addContactPoint("172.31.31.252").build()
+val session = cluster.connect("adcentraldb")
 
 val connector = CassandraConnector(spark.sparkContext.getConf.set("spark.cassandra.connection.host", "172.31.31.252,172.31.22.160,172.31.26.117,172.31.19.127"))
 
@@ -513,7 +578,8 @@ val tblADCaccounts_salesrep_commissionsCT = spark.read.format("org.apache.spark.
   , $"revenue_resume_millicents"
   , $"revenue_dradis_lifetime_millicents"
   , $"revenue_dradis_recurring_millicents"
-).repartition(128)
+  , $"date_modified"
+).repartition(160)
 
 tblADCaccounts_salesrep_commissionsCT.persist
 tblADCaccounts_salesrep_commissionsCT.count
@@ -527,7 +593,8 @@ val tblCRMgeneric_product_creditCT = spark.read.format("org.apache.spark.sql.cas
   , $"currency"
   , $"rejected"
   , $"revenue_generic_product_local"
-).repartition(128)
+  , $"date_modified"
+).repartition(160)
 
 tblCRMgeneric_product_creditCT.persist
 tblCRMgeneric_product_creditCT.count
@@ -541,11 +608,28 @@ val tblADCadvertiser_rep_revenuesCT = spark.read.format("org.apache.spark.sql.ca
   , $"relationship"
   , $"revenue_jobsearch_millicents"
   , $"revenue_resume_millicents"
-).repartition(128)
+  , $"date_modified"
+).repartition(160)
 
 tblADCadvertiser_rep_revenuesCT.persist
 tblADCadvertiser_rep_revenuesCT.count
 tblADCadvertiser_rep_revenuesCT.createOrReplaceTempView("tblADCadvertiser_rep_revenuesCT")
+
+
+val tblADCaccounts_salesrep_commissions_dt_modified = sql("SELECT MAX(date_modified) FROM tblADCaccounts_salesrep_commissionsCT").collect.head.get(0).toString
+val tblCRMgeneric_product_credit_dt_modified = sql("SELECT MAX(date_modified) FROM tblCRMgeneric_product_creditCT").collect.head.get(0).toString
+val tblADCadvertiser_rep_revenues_dt_modified = sql("SELECT MAX(date_modified) FROM tblADCadvertiser_rep_revenuesCT").collect.head.get(0).toString
+
+val db = "adcentraldb"
+val tbl = "tblADCaccounts_salesrep_commissions"
+val dt_modified = tblADCaccounts_salesrep_commissions_dt_modified
+
+val cQuery = s"SELECT MAX(topic) AS topic, MAX(partition) AS partition, MAX(offset) AS offset FROM metadata.kafka_metadata WHERE db = '$db' AND tbl = '$tbl' AND tbl_date_modified = '$dt_modified'"
+val res = session.execute(cQuery).all.asScala.toArray.head
+val (topic, partition, offset) = (res.getString("topic"), res.getInt("partition"), res.getLong("offset"))
+
+val cQuery = s"INSERT INTO metadata.streaming_metadata (job, db, tbl, topic, partition, offset) VALUES('SalesSummary_Load', '$db', '$tbl', '$topic', $partition, $offset)"
+session.execute(cQuery)
 
 
 var query =

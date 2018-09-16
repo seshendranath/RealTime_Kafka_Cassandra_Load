@@ -47,9 +47,15 @@ class Generic {
       res.foreach { rec =>
         val topic = rec.getString("topic")
         val partition = rec.getInt("partition")
-        val offset = rec.getLong("offset") + 1
+        val offset = if (rec.getLong("offset") == -1) rec.getLong("offset") else rec.getLong("offset") + 1
         val value = resMap.getOrElse(topic, mutable.Map[Int, Long]())
-        resMap += topic -> (value + (partition -> Math.min(value.getOrElse(partition, offset), offset)))
+
+        val existingOffset = value.getOrElse(partition, offset)
+        val finalOffset = if (offset != -1 && existingOffset != -1) Math.min(existingOffset, offset)
+        else if (offset != -1) offset
+        else existingOffset
+
+        resMap += topic -> (value + (partition -> finalOffset))
       }
 
       val aString = "{" + resMap.map { case (k, v) => s""""$k":[${v.keys.mkString(",")}]""" }.mkString(",") + "}"

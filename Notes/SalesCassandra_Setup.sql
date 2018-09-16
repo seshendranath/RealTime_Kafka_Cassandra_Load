@@ -10,7 +10,7 @@ SELECT * FROM adcentraldb.sales_revenue_quota_summary_by_user_quarter;
 SELECT * FROM adcentraldb.sales_revenue_summary_by_quarter;
 SELECT * FROM adcentraldb.sales_revenue_quota_summary_by_quarter;
 
-CREATE TABLE kafka_metadata
+CREATE TABLE metadata.kafka_metadata
 (db text,
  tbl text,
  tbl_date_modified timestamp,
@@ -25,13 +25,13 @@ CREATE TABLE kafka_metadata
  PRIMARY KEY ((db, tbl, tbl_date_modified), topic, partition, offset)
 ) WITH default_time_to_live = 864000;
 
-CREATE INDEX binlog_position_idx ON kafka_metadata ( binlog_position );
+CREATE INDEX binlog_position_idx ON metadata.kafka_metadata ( binlog_position );
 
 ALTER TABLE metadata.kafka_metadata WITH gc_grace_seconds = 600 AND
 compaction = {'class': 'org.apache.cassandra.db.compaction.SizeTieredCompactionStrategy', 'max_threshold': '32', 'min_threshold': '4', 'unchecked_tombstone_compaction': 'true',
 'tombstone_compaction_interval': '600', 'tombstone_threshold': '0.1'};
 
-CREATE TABLE streaming_metadata_extended
+CREATE TABLE metadata.streaming_metadata_extended
 (
  job text,
  db text,
@@ -48,7 +48,7 @@ CREATE TABLE streaming_metadata_extended
  PRIMARY KEY (job, db, tbl)
 );
 
-CREATE TABLE streaming_metadata
+CREATE TABLE metadata.streaming_metadata
 (
  job text,
  db text,
@@ -110,7 +110,7 @@ INSERT INTO streaming_metadata (job, db, tbl, topic, partition, offset)
 VALUES('KafkaMetadata_Load', 'adsystemdb', 'tblADScurrency_rates', 'maxwell', 7, -1);
 
 
-CREATE TABLE streaming_stats
+CREATE TABLE stats.streaming_stats
 (
  job text,
  db text,
@@ -122,7 +122,7 @@ CREATE TABLE streaming_stats
  PRIMARY KEY (job, db, tbl)
 );
 
-CREATE TABLE streaming_stats_by_hour
+CREATE TABLE stats.streaming_stats_by_hour
 (
  job text,
  db text,

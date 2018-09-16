@@ -50,9 +50,10 @@ class TblADCadvertiser_rep_revenues_Load {
 
         val cQuery1 = if (value.opType == "insert" || value.opType == "update") {
           s"""
-             |INSERT INTO adcentraldb.tblADCadvertiser_rep_revenues (activity_date,advertiser_id,relationship,user_id,revenue,revenue_jobsearch_millicents,revenue_resume_millicents,revenue_jobsearch_local,revenue_resume_local,currency,revenue_ss_millicents,revenue_hj_millicents,revenue_hjr_millicents,revenue_ss_local,revenue_hj_local,revenue_hjr_local,date_modified)
+             |INSERT INTO adcentraldb.tblADCadvertiser_rep_revenues (offset,activity_date,advertiser_id,relationship,user_id,revenue,revenue_jobsearch_millicents,revenue_resume_millicents,revenue_jobsearch_local,revenue_resume_local,currency,revenue_ss_millicents,revenue_hj_millicents,revenue_hjr_millicents,revenue_ss_local,revenue_hj_local,revenue_hjr_local,date_modified)
              |VALUES (
-             | '${value.activity_date}'
+             | ${value.offset}
+             |,'${value.activity_date}'
              |,${value.advertiser_id}
              |,'${value.relationship}'
              |,${value.user_id.orNull}

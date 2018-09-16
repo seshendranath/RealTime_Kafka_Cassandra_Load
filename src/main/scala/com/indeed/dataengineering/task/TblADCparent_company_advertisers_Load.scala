@@ -50,9 +50,10 @@ class TblADCparent_company_advertisers_Load {
 
         val cQuery1 = if (value.opType == "insert" || value.opType == "update") {
           s"""
-             |INSERT INTO adcentraldb.tblADCparent_company_advertisers (parent_company_id,advertiser_id,date_created,assignment_method,assigned_by,date_modified)
+             |INSERT INTO adcentraldb.tblADCparent_company_advertisers (offset,parent_company_id,advertiser_id,date_created,assignment_method,assigned_by,date_modified)
              |VALUES (
-             | ${value.parent_company_id}
+             | ${value.offset}
+             |,${value.parent_company_id}
              |,${value.advertiser_id}
              |,${if (value.date_created == null) null else "'" + value.date_created + "'"}
              |,${if (value.assignment_method == null) null else "'" + value.assignment_method.replaceAll("'", "''") + "'"}

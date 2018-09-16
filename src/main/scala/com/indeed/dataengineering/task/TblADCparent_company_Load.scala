@@ -50,9 +50,10 @@ class TblADCparent_company_Load {
 
         val cQuery1 = if (value.opType == "insert" || value.opType == "update") {
           s"""
-             |INSERT INTO adcentraldb.tblADCparent_company (id,company,sales_region,user_id,first_revenue_date,default_advertiser_id,prospecting_status,hq_city,hq_state,hq_zip,hq_country,duns,location_type,revenue,total_employees,franchise_operation_type,is_subsidiary,doing_business_as,exchange_symbol,exchange,USSIC,USSIC_description,NAICS,NAICS_description,parent_name,parent_duns,ultimate_domestic_parent_name,ultimate_domestic_parent_duns,ultimate_parent_name,ultimate_parent_duns,active_jobs,date_created,is_lead_eligible,lead_score,date_modified)
+             |INSERT INTO adcentraldb.tblADCparent_company (offset,id,company,sales_region,user_id,first_revenue_date,default_advertiser_id,prospecting_status,hq_city,hq_state,hq_zip,hq_country,duns,location_type,revenue,total_employees,franchise_operation_type,is_subsidiary,doing_business_as,exchange_symbol,exchange,USSIC,USSIC_description,NAICS,NAICS_description,parent_name,parent_duns,ultimate_domestic_parent_name,ultimate_domestic_parent_duns,ultimate_parent_name,ultimate_parent_duns,active_jobs,date_created,is_lead_eligible,lead_score,date_modified)
              |VALUES (
-             | ${value.id}
+             | ${value.offset}
+             |,${value.id}
              |,${if (value.company == null) null else "'" + value.company.replaceAll("'", "''") + "'"}
              |,${if (value.sales_region == null) null else "'" + value.sales_region.replaceAll("'", "''") + "'"}
              |,${value.user_id.orNull}

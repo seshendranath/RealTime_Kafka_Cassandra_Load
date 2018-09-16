@@ -10,7 +10,7 @@ nohup sh run.sh TblADCquota_Load 2 2 1 1 client > TblADCquota_Load.log 2>&1 &
 nohup sh run.sh TblACLusers_Load 2 2 1 1 client > TblACLusers_Load.log 2>&1 &
 nohup sh run.sh TblADScurrency_rates_Load 2 2 1 1 client > TblADScurrency_rates_Load.log 2>&1 &
 
-nohup sh run.sh SalesSummary_Load 2 5 1 5 client > ~/SalesSummary_Load.log 2>&1 &
+nohup sh run.sh SalesSummary_Load 2 5 1 5 client > SalesSummary_Load.log 2>&1 &
 
 nohup python app.py ec2-54-86-5-5.compute-1.amazonaws.com > app.log 2>&1 &
 

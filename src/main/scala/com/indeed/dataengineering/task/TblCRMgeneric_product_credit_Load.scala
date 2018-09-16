@@ -52,9 +52,10 @@ class TblCRMgeneric_product_credit_Load {
 
         val cQuery1 = if (value.opType == "insert" || value.opType == "update") {
           s"""
-             |INSERT INTO adcentraldb.tblCRMgeneric_product_credit (id,activity_date,advertiser_id,relationship,user_id,product_id,revenue_generic_product_millicents,revenue_generic_product_local,currency,invoice_request_id,rejected,date_added,date_modified)
+             |INSERT INTO adcentraldb.tblCRMgeneric_product_credit (offset,id,activity_date,advertiser_id,relationship,user_id,product_id,revenue_generic_product_millicents,revenue_generic_product_local,currency,invoice_request_id,rejected,date_added,date_modified)
              |VALUES (
-             | ${value.id}
+             | ${value.offset}
+             |,${value.id}
              |,${if (value.activity_date == null) null else "'" + value.activity_date + "'"}
              |,${value.advertiser_id.orNull}
              |,${if (value.relationship == null) null else "'" + value.relationship.replaceAll("'", "''") + "'"}

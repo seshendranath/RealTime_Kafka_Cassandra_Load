@@ -49,9 +49,10 @@ class TblADCaccounts_salesrep_commissions_Load {
 
         val cQuery1 = if (value.opType == "insert" || value.opType == "update") {
           s"""
-             |INSERT INTO adcentraldb.tblADCaccounts_salesrep_commissions (date,advertiser_id,salesrep_id,revenue_jobsearch_millicents,revenue_dradis_lifetime_millicents,revenue_dradis_recurring_millicents,revenue_resume_millicents,revenue_ineligible_millicents,revenue_jobsearch_local,revenue_dradis_lifetime_local,revenue_dradis_recurring_local,revenue_resume_local,revenue_ineligible_local,discount_local,discount_forward_local,discounted_revenue_local,commission_rate,commission_amount_local,commission_amount_millicents,newrevenue_jobsearch_millicents,newrevenue_dradis_lifetime_millicents,newrevenue_dradis_recurring_millicents,newrevenue_resume_millicents,currency,date_modified)
+             |INSERT INTO adcentraldb.tblADCaccounts_salesrep_commissions (offset,date,advertiser_id,salesrep_id,revenue_jobsearch_millicents,revenue_dradis_lifetime_millicents,revenue_dradis_recurring_millicents,revenue_resume_millicents,revenue_ineligible_millicents,revenue_jobsearch_local,revenue_dradis_lifetime_local,revenue_dradis_recurring_local,revenue_resume_local,revenue_ineligible_local,discount_local,discount_forward_local,discounted_revenue_local,commission_rate,commission_amount_local,commission_amount_millicents,newrevenue_jobsearch_millicents,newrevenue_dradis_lifetime_millicents,newrevenue_dradis_recurring_millicents,newrevenue_resume_millicents,currency,date_modified)
              |VALUES (
-             | '${value.date}'
+             | ${value.offset}
+             |,'${value.date}'
              |,${value.advertiser_id}
              |,${value.salesrep_id.orNull}
              |,${value.revenue_jobsearch_millicents.orNull}

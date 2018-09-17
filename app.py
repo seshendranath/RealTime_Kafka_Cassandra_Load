@@ -40,7 +40,7 @@ app.layout = html.Div([
     ]),
 
     html.H4(
-        'Comment: The data shown above is calculated by performing ETL on real time streams of tblADCaccounts_salesrep_commissions, tblADCadvertiser_rep_revenues, tblCRMgeneric_product_credit, tbladvertiser, and tblADScurrency_rates.'),
+        'Comment: The data shown above is calculated by performing ETL on real time streams of tblADCaccounts_salesrep_commissions, tblADCadvertiser_rep_revenues, tblCRMgeneric_product_credit from adcentraldb and tbladvertiser, tblADScurrency_rates from adsystemdb to produce adcentraldb.tblADCsummary_sales_dashboard.'),
 
 ])
 

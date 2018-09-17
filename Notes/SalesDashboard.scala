@@ -545,12 +545,6 @@ quotas.persist
 quotas.count
 quotas.createOrReplaceTempView("quotas")
 
-val quotas_by_user_quarter = sql("SELECT year, quarter(to_date(CAST(unix_timestamp(CAST(month AS STRING), 'M') AS TIMESTAMP))) AS quarter, user_id, SUM(quota) AS quota FROM quotas GROUP BY 1, 2, 3")
-quotas_by_user_quarter.write.format("org.apache.spark.sql.cassandra").mode(SaveMode.Append).options(Map("table" -> "sales_revenue_quota_summary_by_user_quarter", "keyspace" -> "adcentraldb")).save
-
-val quotas_by_quarter = sql("SELECT year, quarter(to_date(CAST(unix_timestamp(CAST(month AS STRING), 'M') AS TIMESTAMP))) AS quarter, SUM(quota) AS quota FROM quotas GROUP BY 1, 2")
-quotas_by_quarter.write.format("org.apache.spark.sql.cassandra").mode(SaveMode.Append).options(Map("table" -> "sales_revenue_quota_summary_by_quarter", "keyspace" -> "adcentraldb")).save
-
 
 // Get Static Test Advertiser IDs
 val staticTestAdvertiserIds = spark.read.format("org.apache.spark.sql.cassandra").options(Map("table" -> "testadvertiserids", "keyspace" -> "adsystemdb")).load.repartition(1)
@@ -564,6 +558,25 @@ val statictblADScurrency_rates = spark.read.format("org.apache.spark.sql.cassand
 statictblADScurrency_rates.persist
 statictblADScurrency_rates.count
 statictblADScurrency_rates.createOrReplaceTempView("statictblADScurrency_rates")
+
+val qQuery = """
+               |SELECT 
+               |      year
+               |     ,quarter(to_date(CAST(unix_timestamp(CAST(month AS STRING), 'M') AS TIMESTAMP))) AS quarter
+               |     ,user_id
+               |     ,SUM((quota_local * exchange_rate)/100000000) AS quota
+               |FROM quotas q
+               |INNER JOIN statictblADScurrency_rates er
+               |ON to_date(CAST(unix_timestamp(CAST(year AS STRING) || '-' || CAST(month AS STRING), 'yyyy-M') AS TIMESTAMP)) = er.activity_date AND CASE WHEN q.currency = '' OR q.currency IS NULL THEN 'USD' ELSE q.currency END = er.from_currency
+               |GROUP BY 1, 2, 3
+             """.stripMargin
+
+val quotas_by_user_quarter = sql(qQuery)
+quotas_by_user_quarter.createOrReplaceTempView("quotas_by_user_quarter")
+quotas_by_user_quarter.write.format("org.apache.spark.sql.cassandra").mode(SaveMode.Append).options(Map("table" -> "sales_revenue_quota_summary_by_user_quarter", "keyspace" -> "adcentraldb")).save
+
+val quotas_by_quarter = sql("SELECT year, quarter, SUM(quota) AS quota FROM quotas_by_user_quarter GROUP BY 1, 2")
+quotas_by_quarter.write.format("org.apache.spark.sql.cassandra").mode(SaveMode.Append).options(Map("table" -> "sales_revenue_quota_summary_by_quarter", "keyspace" -> "adcentraldb")).save
 
 
 val tblADCaccounts_salesrep_commissionsCT = spark.read.format("org.apache.spark.sql.cassandra").options(Map("table" -> "tbladcaccounts_salesrep_commissions", "keyspace" -> "adcentraldb")).load.select(

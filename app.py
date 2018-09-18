@@ -133,19 +133,20 @@ def gen_revenue_data(interval):
 
 @app.callback(Output('qtd-revenue-composition', 'figure'), [Input('revenue-composition-update', 'n_intervals')])
 def gen_revenue_data(interval):
-    query = "SELECT SUM(sales_revenue) AS sales_revenue, SUM(agency_revenue) AS agency_revenue, SUM(strategic_revenue) AS strategic_revenue, SUM(sales_new_revenue) AS sales_new_revenue FROM sales_revenue_summary_by_quarter WHERE year = 2018 and quarter = 3"
+    query = "SELECT SUM(sales_revenue) AS sales_revenue, SUM(agency_revenue) AS agency_revenue, SUM(strategic_revenue) AS strategic_revenue, SUM(sales_new_revenue) AS sales_new_revenue, SUM(new_parent_revenue) AS new_parent_revenue FROM sales_revenue_summary_by_quarter WHERE year = 2018 and quarter = 3"
     rows = session.execute(query)
     df = rows._current_rows
     sales_revenue = (df['sales_revenue'] / 100000).astype(int)[0]
     agency_revenue = (df['agency_revenue'] / 100000).astype(int)[0]
     strategic_revenue = (df['strategic_revenue'] / 100000).astype(int)[0]
     sales_new_revenue = (df['sales_new_revenue'] / 100000).astype(int)[0]
+    new_parent_revenue = (df['new_parent_revenue'] / 100000).astype(int)[0]
 
     trace0 = go.Bar(
-        x=['sales_revenue', 'agency_revenue', 'strategic_revenue', 'sales_new_revenue'],
-        y=[sales_revenue, agency_revenue, strategic_revenue, sales_new_revenue],
+        x=['sales_revenue', 'agency_revenue', 'strategic_revenue', 'sales_new_revenue', 'new_parent_revenue'],
+        y=[sales_revenue, agency_revenue, strategic_revenue, sales_new_revenue, new_parent_revenue],
         text=["${:,.0f}".format(sales_revenue), "${:,.0f}".format(agency_revenue), "${:,.0f}".format(strategic_revenue),
-              "${:,.0f}".format(sales_new_revenue)],
+              "${:,.0f}".format(sales_new_revenue), "${:,.0f}".format(new_parent_revenue)],
         textposition='auto',
         marker=dict(
             color='rgb(158,202,225)',

@@ -23,6 +23,7 @@ CREATE TABLE adcentraldb.sales_revenue_summary_by_user_quarter
     agency_revenue COUNTER,
     strategic_revenue COUNTER,
     sales_new_revenue COUNTER,
+    new_parent_revenue COUNTER,
     total_revenue COUNTER,
     PRIMARY KEY(year, quarter, user_id)
 );
@@ -46,6 +47,7 @@ CREATE TABLE adcentraldb.sales_revenue_summary_by_quarter
     agency_revenue COUNTER,
     strategic_revenue COUNTER,
     sales_new_revenue COUNTER,
+    new_parent_revenue COUNTER,
     total_revenue COUNTER,
     PRIMARY KEY(year, quarter)
 );
@@ -59,6 +61,7 @@ CREATE TABLE adcentraldb.sales_revenue_quota_summary_by_quarter
     total_revenue BigInt,
     PRIMARY KEY(year, quarter)
 );
+
 */
 import kafka.serializer.StringDecoder
 import org.apache.spark.streaming._
@@ -579,6 +582,40 @@ val quotas_by_quarter = sql("SELECT year, quarter, SUM(quota) AS quota FROM quot
 quotas_by_quarter.write.format("org.apache.spark.sql.cassandra").mode(SaveMode.Append).options(Map("table" -> "sales_revenue_quota_summary_by_quarter", "keyspace" -> "adcentraldb")).save
 
 
+val tblADCparent_company_advertisersCT = spark.read.format("org.apache.spark.sql.cassandra").options(Map("table" -> "tbladcparent_company_advertisers", "keyspace" -> "adcentraldb")).load.select(
+    $"advertiser_id"
+  , $"parent_company_id"
+).repartition(160)
+
+tblADCparent_company_advertisersCT.persist
+tblADCparent_company_advertisersCT.count
+tblADCparent_company_advertisersCT.createOrReplaceTempView("tblADCparent_company_advertisersCT")
+
+
+val tblADCparent_companyCT = spark.read.format("org.apache.spark.sql.cassandra").options(Map("table" -> "tbladcparent_company", "keyspace" -> "adcentraldb")).load.select(
+    $"id"
+  , $"user_id"
+  , $"first_revenue_date"
+).where("first_revenue_date >= '2018-01-01'").repartition(160)
+
+tblADCparent_companyCT.persist
+tblADCparent_companyCT.count
+tblADCparent_companyCT.createOrReplaceTempView("tblADCparent_companyCT")
+
+
+val tblACLusersCT = spark.read.format("org.apache.spark.sql.cassandra").options(Map("table" -> "tblaclusers", "keyspace" -> "adcentraldb")).load.select(
+    $"id"
+  , $"entity"
+  , $"workday_team"
+).where("entity != 'US' AND workday_team like '%NAM%'").select("id").repartition(160)
+
+tblACLusersCT.persist
+tblACLusersCT.count
+tblACLusersCT.createOrReplaceTempView("tblACLusersCT")
+
+
+val partMap = Map("tblADCaccounts_salesrep_commissions" -> 9, "tblCRMgeneric_product_credit" -> 7, "tblADCadvertiser_rep_revenues" -> 1)
+
 val tblADCaccounts_salesrep_commissionsCT = spark.read.format("org.apache.spark.sql.cassandra").options(Map("table" -> "tbladcaccounts_salesrep_commissions", "keyspace" -> "adcentraldb")).load.select(
   $"date"
   , $"salesrep_id".as("user_id")
@@ -599,10 +636,20 @@ tblADCaccounts_salesrep_commissionsCT.persist
 tblADCaccounts_salesrep_commissionsCT.count
 tblADCaccounts_salesrep_commissionsCT.createOrReplaceTempView("tblADCaccounts_salesrep_commissionsCT")
 
+val db = "adcentraldb"
+val tbl = "tblADCaccounts_salesrep_commissions"
+val topic = "maxwell"
+val partition = partMap(tbl)
+val offset = sql(s"SELECT MAX(offset) FROM ${tbl}CT").collect.head.get(0).toString.toLong
+
+val cQuery = s"INSERT INTO metadata.streaming_metadata (job, db, tbl, topic, partition, offset) VALUES('SalesSummary_Load', '$db', '$tbl', '$topic', $partition, $offset)"
+session.execute(cQuery)
+
 
 val tblCRMgeneric_product_creditCT = spark.read.format("org.apache.spark.sql.cassandra").options(Map("table" -> "tblcrmgeneric_product_credit", "keyspace" -> "adcentraldb")).load.select(
   $"activity_date".as("date")
   , $"user_id"
+  , $"advertiser_id"
   , $"relationship"
   , $"currency"
   , $"rejected"
@@ -614,6 +661,15 @@ val tblCRMgeneric_product_creditCT = spark.read.format("org.apache.spark.sql.cas
 tblCRMgeneric_product_creditCT.persist
 tblCRMgeneric_product_creditCT.count
 tblCRMgeneric_product_creditCT.createOrReplaceTempView("tblCRMgeneric_product_creditCT")
+
+val db = "adcentraldb"
+val tbl = "tblCRMgeneric_product_credit"
+val topic = "maxwell"
+val partition = partMap(tbl)
+val offset = sql(s"SELECT MAX(offset) FROM ${tbl}CT").collect.head.get(0).toString.toLong
+
+val cQuery = s"INSERT INTO metadata.streaming_metadata (job, db, tbl, topic, partition, offset) VALUES('SalesSummary_Load', '$db', '$tbl', '$topic', $partition, $offset)"
+session.execute(cQuery)
 
 
 val tblADCadvertiser_rep_revenuesCT = spark.read.format("org.apache.spark.sql.cassandra").options(Map("table" -> "tbladcadvertiser_rep_revenues", "keyspace" -> "adcentraldb")).load.select(
@@ -631,9 +687,8 @@ tblADCadvertiser_rep_revenuesCT.persist
 tblADCadvertiser_rep_revenuesCT.count
 tblADCadvertiser_rep_revenuesCT.createOrReplaceTempView("tblADCadvertiser_rep_revenuesCT")
 
-val partMap = Map("tblADCaccounts_salesrep_commissions" -> 9, "tblCRMgeneric_product_credit" -> 7, "tblADCadvertiser_rep_revenues" -> 1)
 val db = "adcentraldb"
-val tbl = "tblCRMgeneric_product_credit"
+val tbl = "tblADCadvertiser_rep_revenues"
 val topic = "maxwell"
 val partition = partMap(tbl)
 val offset = sql(s"SELECT MAX(offset) FROM ${tbl}CT").collect.head.get(0).toString.toLong
@@ -642,8 +697,39 @@ val cQuery = s"INSERT INTO metadata.streaming_metadata (job, db, tbl, topic, par
 session.execute(cQuery)
 
 
+val newParentQuery =
+  """
+    |SELECT
+    |      pc.id
+    |     ,pca.advertiser_id
+    |     ,pc.user_id
+    |     ,pc.first_revenue_date
+    |FROM
+    |(
+    |SELECT tmpPC.*
+    |FROM tblADCparent_companyCT tmpPC
+    |INNER JOIN tblACLusersCT u ON tmpPC.user_id = u.id
+    |) pc
+    |INNER JOIN tblADCparent_company_advertisersCT pca ON pc.id = pca.parent_company_id
+  """.stripMargin
+
+val newParent = sql(newParentQuery)
+newParent.persist
+newParent.count
+newParent.createOrReplaceTempView("newParent")
+
+
 var query =
   """
+    |SELECT
+    |      COALESCE(t1.year, t2.year) AS year
+    |     ,COALESCE(t1.quarter, t2.quarter) AS quarter
+    |     ,COALESCE(t1.user_id, t2.user_id) AS user_id
+    |     ,COALESCE(t1.sales_new_revenue, 0) AS sales_new_revenue
+    |     ,COALESCE(t1.sales_revenue, 0) AS sales_revenue
+    |     ,COALESCE(t2.new_parent_revenue, 0) AS new_parent_revenue
+    |FROM
+    |(
     |SELECT 
     |      YEAR(date) AS year
     |     ,QUARTER(date) AS quarter
@@ -660,7 +746,21 @@ var query =
     |LEFT OUTER JOIN staticTestAdvertiserIds b 
     |ON a.advertiser_id = b.id
     |WHERE b.id IS NULL
-    |GROUP BY 1, 2, 3
+    |GROUP BY 1, 2, 3) t1
+    |FULL OUTER JOIN
+    |(SELECT
+    |      YEAR(date) AS year
+    |     ,QUARTER(date) AS quarter
+    |     ,a.user_id
+    |     ,SUM(COALESCE(revenue_jobsearch_millicents, 0) + 
+    |      COALESCE(revenue_resume_millicents, 0) + 
+    |      COALESCE(revenue_dradis_lifetime_millicents, 0) + 
+    |      COALESCE(revenue_dradis_recurring_millicents, 0)) AS new_parent_revenue
+    |FROM tblADCaccounts_salesrep_commissionsCT a
+    |INNER JOIN newParent np ON a.advertiser_id = np.advertiser_id AND a.user_id = np.user_id
+    |WHERE a.date <= DATE_ADD(np.first_revenue_date, 89)
+    |GROUP BY 1, 2, 3) t2
+    |ON t1.year = t2.year AND t1.quarter = t2.quarter AND t1.user_id = t2.user_id
   """.stripMargin
 
 val tblADCaccounts_salesrep_commissionsCTsr = sql(query)
@@ -671,7 +771,15 @@ tblADCaccounts_salesrep_commissionsCTsr.createOrReplaceTempView("tblADCaccounts_
 
 query =
   """
-    |SELECT 
+    |SELECT
+    |      COALESCE(t1.year, t2.year) AS year
+    |     ,COALESCE(t1.quarter, t2.quarter) AS quarter
+    |     ,COALESCE(t1.user_id, t2.user_id) AS user_id
+    |     ,COALESCE(t1.sales_revenue, 0) AS sales_revenue
+    |     ,COALESCE(t1.agency_revenue, 0) AS agency_revenue
+    |     ,COALESCE(t2.new_parent_revenue, 0) AS new_parent_revenue
+    |FROM
+    |(SELECT 
     |      YEAR(date) AS year
     |     ,QUARTER(date) AS quarter
     |     ,user_id
@@ -689,7 +797,27 @@ query =
     |) arr 
     |INNER JOIN (SELECT * FROM statictblADScurrency_rates) er
     |ON arr.date = er.activity_date AND arr.currency = er.from_currency
-    |GROUP BY 1, 2, 3
+    |GROUP BY 1, 2, 3) t1
+    |FULL OUTER JOIN
+    |(SELECT
+    |      YEAR(date) AS year
+    |     ,QUARTER(date) AS quarter
+    |     ,user_id
+    |     ,SUM(CAST(((total_local * exchange_rate) / 1000) AS BIGINT)) AS new_parent_revenue
+    |FROM
+    |(SELECT
+    |       tpc.user_id
+    |      ,tpc.date
+    |      ,COALESCE(revenue_generic_product_local, 0) AS total_local
+    |      ,tpc.CURRENCY
+    |FROM tblCRMgeneric_product_creditCT tpc
+    |INNER JOIN newParent np ON tpc.advertiser_id = np.advertiser_id AND tpc.user_id = np.user_id
+    |WHERE tpc.RELATIONSHIP IN ('SALES_REP', 'STRATEGIC_REP') AND tpc.date <= DATE_ADD(np.first_revenue_date, 89)
+    |) a
+    |INNER JOIN statictblADScurrency_rates r
+    |ON a.date = r.activity_date AND a.CURRENCY = r.from_currency
+    |GROUP BY 1, 2, 3) t2
+    |ON t1.year = t2.year AND t1.quarter = t2.quarter AND t1.user_id = t2.user_id
   """.stripMargin
 
 val tblCRMgeneric_product_creditCTsr = sql(query)
@@ -731,7 +859,8 @@ query =
     |     ,agency_revenue
     |     ,sales_new_revenue
     |     ,strategic_revenue
-    |     ,sales_revenue + agency_revenue + sales_new_revenue + strategic_revenue AS total_revenue
+    |     ,new_parent_revenue
+    |     ,sales_revenue + agency_revenue + sales_new_revenue + strategic_revenue + new_parent_revenue AS total_revenue
     |FROM
     |(
     |SELECT 
@@ -742,6 +871,7 @@ query =
     |     ,CAST(SUM(COALESCE(b.agency_revenue, 0) + COALESCE(c.agency_revenue, 0)) AS BIGINT) AS agency_revenue
     |     ,CAST(SUM(COALESCE(a.sales_new_revenue, 0)) AS BIGINT) AS sales_new_revenue
     |     ,CAST(SUM(COALESCE(c.strategic_revenue, 0)) AS BIGINT) AS strategic_revenue
+    |     ,CAST(SUM(COALESCE(a.new_parent_revenue, 0) + COALESCE(b.new_parent_revenue, 0)) AS BIGINT) AS new_parent_revenue
     |FROM tblADCaccounts_salesrep_commissionsCTsr a
     |FULL OUTER JOIN
     |tblCRMgeneric_product_creditCTsr b ON a.year = b.year AND a.quarter = b.quarter AND a.user_id = b.user_id
@@ -755,7 +885,7 @@ val sales_revenue_summary_by_user_quarter = sql(query)
 sales_revenue_summary_by_user_quarter.persist
 sales_revenue_summary_by_user_quarter.count
 sales_revenue_summary_by_user_quarter.createOrReplaceTempView("sales_revenue_summary_by_user_quarter")
-sql("SELECT SUM(sales_revenue) + SUM(agency_revenue) + SUM(strategic_revenue) + SUM(sales_new_revenue) AS total_revenue, SUM(sales_revenue), SUM(agency_revenue), SUM(strategic_revenue), SUM(sales_new_revenue) FROM sales_revenue_summary_by_user_quarter WHERE year = 2018 and quarter = 3").show(false)
+sql("SELECT SUM(sales_revenue) + SUM(agency_revenue) + SUM(strategic_revenue) + SUM(sales_new_revenue) + SUM(new_parent_revenue) AS total_revenue, SUM(sales_revenue), SUM(agency_revenue), SUM(strategic_revenue), SUM(sales_new_revenue), SUM(new_parent_revenue) FROM sales_revenue_summary_by_user_quarter WHERE year = 2018 and quarter = 3").show(false)
 
 sales_revenue_summary_by_user_quarter.write.format("org.apache.spark.sql.cassandra").mode(SaveMode.Append).options(Map("table" -> "sales_revenue_summary_by_user_quarter", "keyspace" -> "adcentraldb")).save
 sales_revenue_summary_by_user_quarter.select("year", "quarter", "user_id", "total_revenue").write.format("org.apache.spark.sql.cassandra").mode(SaveMode.Append).options(Map("table" -> "sales_revenue_quota_summary_by_user_quarter", "keyspace" -> "adcentraldb")).save
@@ -770,6 +900,7 @@ query =
     |     ,SUM(agency_revenue) AS agency_revenue
     |     ,SUM(sales_new_revenue) AS sales_new_revenue
     |     ,SUM(strategic_revenue) AS strategic_revenue
+    |     ,SUM(new_parent_revenue) AS new_parent_revenue
     |     ,SUM(total_revenue) AS total_revenue
     |FROM sales_revenue_summary_by_user_quarter
     |GROUP BY 1, 2

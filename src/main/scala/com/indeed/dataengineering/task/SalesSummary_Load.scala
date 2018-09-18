@@ -40,13 +40,13 @@ class SalesSummary_Load {
         val metaQuery = getMetaQueries(className, value.db, value.tbl, value.topic, value.partition, value.offset)
 
         val total_revenue = value.sales_revenue + value.agency_revenue + value.strategic_revenue + value.sales_new_revenue
-        var new_parent_revenue = BigInt(0)
 
         val cQuery3 = s"SELECT total_revenue FROM adcentraldb.sales_revenue_summary_by_user_quarter WHERE year = ${value.year} AND quarter = ${value.quarter} AND user_id = ${value.user_id}"
         val cQuery4 = s"SELECT total_revenue FROM adcentraldb.sales_revenue_summary_by_quarter WHERE year = ${value.year} AND quarter = ${value.quarter}"
 
-
         connector.withSessionDo { session =>
+
+          var new_parent_revenue = BigInt(0)
 
           val pca = s"SELECT parent_company_id FROM adcentraldb.tbladcparent_company_advertisers WHERE advertiser_id = ${value.advertiser_id}"
           val pcaRow = session.execute(pca).one
@@ -79,8 +79,8 @@ class SalesSummary_Load {
             }
           }
 
-          val cQuery1 = s"update adcentraldb.sales_revenue_summary_by_user_quarter SET total_revenue = total_revenue + $total_revenue, sales_revenue = sales_revenue + ${value.sales_revenue}, agency_revenue = agency_revenue + ${value.agency_revenue}, strategic_revenue = strategic_revenue + ${value.strategic_revenue}, sales_new_revenue = sales_new_revenue + ${value.sales_new_revenue}, new_parent_revenue = new_parent_revenue + $new_parent_revenue  WHERE year = ${value.year} AND quarter = ${value.quarter} AND user_id = ${value.user_id}"
-          val cQuery2 = s"update adcentraldb.sales_revenue_summary_by_quarter SET total_revenue = total_revenue + $total_revenue, sales_revenue = sales_revenue + ${value.sales_revenue}, agency_revenue = agency_revenue + ${value.agency_revenue}, strategic_revenue = strategic_revenue + ${value.strategic_revenue}, sales_new_revenue = sales_new_revenue + ${value.sales_new_revenue}, new_parent_revenue = new_parent_revenue + $new_parent_revenue WHERE year = ${value.year} AND quarter = ${value.quarter}"
+          val cQuery1 = s"update adcentraldb.sales_revenue_summary_by_user_quarter SET total_revenue = total_revenue + ${total_revenue + new_parent_revenue}, sales_revenue = sales_revenue + ${value.sales_revenue}, agency_revenue = agency_revenue + ${value.agency_revenue}, strategic_revenue = strategic_revenue + ${value.strategic_revenue}, sales_new_revenue = sales_new_revenue + ${value.sales_new_revenue}, new_parent_revenue = new_parent_revenue + $new_parent_revenue  WHERE year = ${value.year} AND quarter = ${value.quarter} AND user_id = ${value.user_id}"
+          val cQuery2 = s"update adcentraldb.sales_revenue_summary_by_quarter SET total_revenue = total_revenue + ${total_revenue + new_parent_revenue}, sales_revenue = sales_revenue + ${value.sales_revenue}, agency_revenue = agency_revenue + ${value.agency_revenue}, strategic_revenue = strategic_revenue + ${value.strategic_revenue}, sales_new_revenue = sales_new_revenue + ${value.sales_new_revenue}, new_parent_revenue = new_parent_revenue + $new_parent_revenue WHERE year = ${value.year} AND quarter = ${value.quarter}"
 
           session.execute(cQuery1)
           session.execute(cQuery2)

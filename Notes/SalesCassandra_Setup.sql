@@ -145,6 +145,7 @@ CREATE TABLE adcentraldb.sales_revenue_summary_by_user_quarter
     agency_revenue COUNTER,
     strategic_revenue COUNTER,
     sales_new_revenue COUNTER,
+    new_parent_revenue COUNTER,
     total_revenue COUNTER,
     PRIMARY KEY(year, quarter, user_id)
 );
@@ -168,6 +169,7 @@ CREATE TABLE adcentraldb.sales_revenue_summary_by_quarter
     agency_revenue COUNTER,
     strategic_revenue COUNTER,
     sales_new_revenue COUNTER,
+    new_parent_revenue COUNTER,
     total_revenue COUNTER,
     PRIMARY KEY(year, quarter)
 );

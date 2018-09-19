@@ -70,7 +70,7 @@ class TblADCquota_Load {
              |WHERE year = ${value.year}
              |AND month = ${value.month}
              |AND user_id = ${value.user_id}
-             |AND quota_type = ${value.quota_type}
+             |AND quota_type = '${value.quota_type}'
            """.stripMargin
         }
 

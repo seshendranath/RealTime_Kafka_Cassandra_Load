@@ -44,14 +44,15 @@ class SalesSummary_Load {
         val cQuery3 = s"SELECT total_revenue FROM adcentraldb.sales_revenue_summary_by_user_quarter WHERE year = ${value.year} AND quarter = ${value.quarter} AND user_id = ${value.user_id}"
         val cQuery4 = s"SELECT total_revenue FROM adcentraldb.sales_revenue_summary_by_quarter WHERE year = ${value.year} AND quarter = ${value.quarter}"
 
+        val pca = s"SELECT parent_company_id FROM adcentraldb.tbladcparent_company_advertisers WHERE advertiser_id = ${value.advertiser_id}"
+
         connector.withSessionDo { session =>
 
           var new_parent_revenue = BigInt(0)
 
-          val pca = s"SELECT parent_company_id FROM adcentraldb.tbladcparent_company_advertisers WHERE advertiser_id = ${value.advertiser_id}"
-          val pcaRow = session.execute(pca).one
-
           if (value.tbl == "tblADCaccounts_salesrep_commissions" || value.tbl == "tblCRMgeneric_product_credit") {
+            val pcaRow = session.execute(pca).one
+
             if (pcaRow != null) {
               val parent_company_id = pcaRow.getObject("parent_company_id").toString
 

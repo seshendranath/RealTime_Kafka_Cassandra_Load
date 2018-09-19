@@ -65,9 +65,9 @@ class TblADScurrency_rates_Load {
         } else {
           s"""
              |DELETE FROM adsystemdb.tblADScurrency_rates
-             |WHERE activity_date = ${value.activity_date}
-             |AND to_currency = ${value.to_currency}
-             |AND from_currency = ${value.from_currency}
+             |WHERE activity_date = '${value.activity_date}'
+             |AND to_currency = '${value.to_currency}'
+             |AND from_currency = '${value.from_currency}'
            """.stripMargin
         }
 

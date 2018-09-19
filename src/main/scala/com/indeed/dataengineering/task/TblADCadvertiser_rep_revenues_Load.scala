@@ -75,9 +75,9 @@ class TblADCadvertiser_rep_revenues_Load {
         } else {
           s"""
              |DELETE FROM adcentraldb.tblADCadvertiser_rep_revenues
-             |WHERE activity_date = ${value.activity_date}
+             |WHERE activity_date = '${value.activity_date}'
              |AND advertiser_id = ${value.advertiser_id}
-             |AND relationship = ${value.relationship}
+             |AND relationship = '${value.relationship}'
            """.stripMargin
         }
 

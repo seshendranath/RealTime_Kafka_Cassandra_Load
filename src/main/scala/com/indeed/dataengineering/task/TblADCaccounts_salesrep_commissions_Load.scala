@@ -82,7 +82,7 @@ class TblADCaccounts_salesrep_commissions_Load {
         } else {
           s"""
              |DELETE FROM adcentraldb.tblADCaccounts_salesrep_commissions
-             |WHERE date = ${value.date}
+             |WHERE date = '${value.date}'
              |AND advertiser_id = ${value.advertiser_id}
            """.stripMargin
         }

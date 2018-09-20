@@ -17,7 +17,7 @@ class AutoGenerateScalaCode {
     val table = conf("table")
     val pk = conf("pk").split(",").toSet
 
-    val df: DataFrame = spark.read.parquet(conf("s3aUri") + conf("s3Bucket") + "/" + conf("basePath") + "/" + s"$db/$table")
+    val df: DataFrame = spark.read.parquet(conf.getOrElse("sourcePath", conf("s3aUri") + conf("s3Bucket") + "/" + conf("basePath") + "/" + s"$db/$table"))
     val cols: String = df.columns.mkString(",")
 
     // Produce Case Statement

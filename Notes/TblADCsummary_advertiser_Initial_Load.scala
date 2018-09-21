@@ -2,6 +2,27 @@
 36.7 MB -> 118.4 MB
 1 MB -> 3.2261580381
 106.7 GB -> 109,260.8 MB -> 352,492.608169237 MB -> 344.23 GB
+
+cname=TblADCsummary_advertiser_Initial_Load
+dm=10
+em=730
+ne=3
+ec=96
+mode=client
+
+spark-submit \
+--name $cname \
+--master yarn \
+--deploy-mode $mode \
+--driver-memory=${dm}g \
+--num-executors=${ne} \
+--executor-cores=${ec} \
+--executor-memory=${em}g \
+--conf "spark.cassandra.input.consistency.level=LOCAL_ONE" \
+--conf "spark.cassandra.output.consistency.level=LOCAL_ONE" \
+--conf "spark.dynamicAllocation.enabled=false" \
+--conf "spark.serializer=org.apache.spark.serializer.KryoSerializer" \
+RealTime_Load-assembly-1.0-SNAPSHOT.jar -e=prod --class=com.indeed.dataengineering.task.TblADCsummary_advertiser_Initial_Load --numPartitions=288 --sourcePath=s3a://indeed-de/dsmith/output8/tbladcsummary_advertiser_history/*/*
 */
 
 import org.apache.spark.sql._

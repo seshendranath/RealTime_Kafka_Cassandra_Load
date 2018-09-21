@@ -290,6 +290,6 @@ CREATE TABLE IF NOT EXISTS adcentraldb.tbladcsummary_advertiser
      date_modified                  TIMESTAMP,
      is_deleted                     BOOLEAN,
      binlog_timestamp               TIMESTAMP,
-     PRIMARY KEY (advertiser_id, activity_date)
+     PRIMARY KEY (activity_date, advertiser_id)
   );
 */

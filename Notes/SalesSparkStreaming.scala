@@ -76,6 +76,17 @@ session.execute(cQuery)
 cQuery = s"UPDATE stats.streaming_stats SET inserted_records = inserted_records + $insert_count WHERE job = '${table.capitalize + "_Load"}' AND db = '$db' AND tbl = '$table'"
 session.execute(cQuery)
 
+/* 
+alias spark="spark-shell --master yarn --deploy-mode client --executor-memory=1G --num-executors=1 --executor-cores=1 --driver-memory=1G --conf \"spark.driver.extraJavaOptions=-Djava.security.auth.login.config=kafka_server_jaas.conf\" --conf \"spark.executor.extraJavaOptions=-Djava.security.auth.login.config=kafka_server_jaas.conf\" --jars $(echo ~/jars/*.jar | tr ' ' ',') --files ~/kafka.client.truststore.jks,kafka_server_jaas.conf"
+
+vi kafka_server_jaas.conf
+
+KafkaClient {
+   org.apache.kafka.common.security.plain.PlainLoginModule required
+   username="client1"
+   password="client1-secret";
+};
+*/ */
 
 // Testing Real Time Cassandra Loads in Spark Shell
 import kafka.serializer.StringDecoder
@@ -111,16 +122,24 @@ import org.apache.spark.sql.types._
 // val mapper = new ObjectMapper() with ScalaObjectMapper
 // mapper.registerModule(DefaultScalaModule)
 
-
 spark.conf.set("spark.sql.shuffle.partitions", "10")
 spark.conf.set("spark.cassandra.output.consistency.level", "LOCAL_ONE")
-val Array(brokers, topics) = Array("ec2-54-85-62-208.compute-1.amazonaws.com:9092", "maxwell")
+
+// If not using ssl
+// val Array(brokers, topics) = Array("ec2-54-85-62-208.compute-1.amazonaws.com:9092", "maxwell")
+
+// If using ssl
+val Array(brokers, topics) = Array("ec2-54-160-85-68.compute-1.amazonaws.com:9094", "test")
 
 val timestampFormat = new SimpleDateFormat("yyyy-MM-dd' 'HH:mm:ss")
 
 val connector = CassandraConnector(spark.sparkContext.getConf.set("spark.cassandra.connection.host", "172.31.31.252,172.31.22.160,172.31.26.117,172.31.19.127"))
 
-val kafkaStream = spark.readStream.format("kafka").option("kafka.bootstrap.servers", brokers).option("subscribe", topics).load()
+// If not using ssl
+// val kafkaStream = spark.readStream.format("kafka").option("kafka.bootstrap.servers", brokers).option("subscribe", topics).load()
+
+// If using ssl
+val kafkaStream = spark.readStream.format("kafka").option("kafka.security.protocol", "SASL_SSL").option("kafka.ssl.protocol", "TLSv1.2").option("kafka.ssl.endpoint.identification.algorithm", "").option("kafka.ssl.truststore.location", "kafka.client.truststore.jks").option("kafka.ssl.truststore.password", "Indeed1234").option("kafka.sasl.mechanism", "PLAIN").option("kafka.bootstrap.servers", brokers).option("subscribe", topics).load()
   //.option("startingOffsets", s""" {"${conf("kafka.topic")}":{"0":-1}} """)
 
 val rawData = kafkaStream.selectExpr("CAST(key AS STRING)", "CAST(value AS STRING)").as[(String, String)].map(_._2)

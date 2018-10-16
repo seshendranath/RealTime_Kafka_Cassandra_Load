@@ -30,6 +30,9 @@ nohup sh check.sh TblADCsummary_advertiser_Load &
 nohup sh check.sh SalesSummary_Load &
 
 
+# Kill the spark streaming app gracefully
+ps -ef | grep spark | grep KafkaMetadata_Load | awk '{print $2}' | xargs kill -SIGTERM
+
 
 sh distcp.sh /user/dataeng/mysql/adsystemdb/tbladvertiser s3a://indeed-data/datalake/v1/prod/mysql/adsystemdb/tbladvertiser 50
 sh distcp.sh /user/dataeng/mysql/adsystemdb/tblADScurrency_rates s3a://indeed-data/datalake/v1/prod/mysql/adsystemdb/tblADScurrency_rates 1

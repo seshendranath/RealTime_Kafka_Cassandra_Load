@@ -81,6 +81,12 @@ VALUES('TblADCquota_Load', 'adcentraldb', 'tblADCquota', 'maxwell', 4, -1);
 INSERT INTO metadata.streaming_metadata (job, db, tbl, topic, partition, offset) 
 VALUES('TblADScurrency_rates_Load', 'adsystemdb', 'tblADScurrency_rates', 'maxwell', 7, -1);
 
+INSERT INTO metadata.streaming_metadata (job, db, tbl, topic, partition, offset) 
+VALUES('TblACLusers_Load', 'adcentraldb', 'tblACLusers', 'maxwell', 0, -1);
+
+INSERT INTO metadata.streaming_metadata (job, db, tbl, topic, partition, offset) 
+VALUES('TblADCsummary_advertiser_Load', 'adcentraldb', 'tblADCsummary_advertiser', 'maxwell', 8, -1);
+
 
 
 INSERT INTO metadata.streaming_metadata (job, db, tbl, topic, partition, offset) 
@@ -106,6 +112,13 @@ VALUES('KafkaMetadata_Load', 'adcentraldb', 'tblADCquota', 'maxwell', 4, -1);
 
 INSERT INTO metadata.streaming_metadata (job, db, tbl, topic, partition, offset) 
 VALUES('KafkaMetadata_Load', 'adsystemdb', 'tblADScurrency_rates', 'maxwell', 7, -1);
+
+INSERT INTO metadata.streaming_metadata (job, db, tbl, topic, partition, offset) 
+VALUES('KafkaMetadata_Load', 'adcentraldb', 'tblACLusers', 'maxwell', 0, -1);
+
+INSERT INTO metadata.streaming_metadata (job, db, tbl, topic, partition, offset) 
+VALUES('KafkaMetadata_Load', 'adcentraldb', 'tblADCsummary_advertiser', 'maxwell', 8, -1);
+
 
 
 CREATE TABLE stats.streaming_stats

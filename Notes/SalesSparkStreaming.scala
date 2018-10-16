@@ -43,7 +43,7 @@ val pk = "activity_date,advertiser_id,relationship"
 val dtCol = "date_modified"
 val drop = true
 
-val df = spark.read.parquet(s"s3a://indeed-data/datalake/v1/prod/mysql/$db/$table/$table/*")
+val df = spark.read.parquet(s"s3a://indeed-data/datalake/v1/prod/mysql/$db/$table")
 df1.unpersist
 val df1 = df.repartition(160)
 df1.persist

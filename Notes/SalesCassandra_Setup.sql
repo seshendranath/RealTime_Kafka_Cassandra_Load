@@ -1,14 +1,12 @@
+CREATE KEYSPACE adcentraldb WITH REPLICATION = { 'class' : 'SimpleStrategy', 'replication_factor' : 1 };
+
+CREATE KEYSPACE adsystemdb WITH REPLICATION = { 'class' : 'SimpleStrategy', 'replication_factor' : 1 };
+
+CREATE KEYSPACE metadata WITH REPLICATION = { 'class' : 'SimpleStrategy', 'replication_factor' : 1 };
+
+CREATE KEYSPACE stats WITH REPLICATION = { 'class' : 'SimpleStrategy', 'replication_factor' : 1 };
+
 CREATE TABLE adsystemdb.testadvertiserids (id bigint PRIMARY KEY);
-
-DROP TABLE adcentraldb.sales_revenue_summary_by_user_quarter;
-DROP TABLE adcentraldb.sales_revenue_quota_summary_by_user_quarter;
-DROP TABLE adcentraldb.sales_revenue_summary_by_quarter;
-DROP TABLE adcentraldb.sales_revenue_quota_summary_by_quarter;
-
-SELECT * FROM adcentraldb.sales_revenue_summary_by_user_quarter;
-SELECT * FROM adcentraldb.sales_revenue_quota_summary_by_user_quarter;
-SELECT * FROM adcentraldb.sales_revenue_summary_by_quarter;
-SELECT * FROM adcentraldb.sales_revenue_quota_summary_by_quarter;
 
 CREATE TABLE metadata.kafka_metadata
 (db text,
@@ -59,54 +57,54 @@ CREATE TABLE metadata.streaming_metadata
  PRIMARY KEY (job, db, tbl)
 );
 
-INSERT INTO streaming_metadata (job, db, tbl, topic, partition, offset) 
+INSERT INTO metadata.streaming_metadata (job, db, tbl, topic, partition, offset) 
 VALUES('TblADCaccounts_salesrep_commissions_Load', 'adcentraldb', 'tblADCaccounts_salesrep_commissions', 'maxwell', 9, -1);
 
-INSERT INTO streaming_metadata (job, db, tbl, topic, partition, offset) 
+INSERT INTO metadata.streaming_metadata (job, db, tbl, topic, partition, offset) 
 VALUES('TblADCadvertiser_rep_revenues_Load', 'adcentraldb', 'tblADCadvertiser_rep_revenues', 'maxwell', 1, -1);
 
-INSERT INTO streaming_metadata (job, db, tbl, topic, partition, offset) 
+INSERT INTO metadata.streaming_metadata (job, db, tbl, topic, partition, offset) 
 VALUES('Tbladvertiser_Load', 'adsystemdb', 'tbladvertiser', 'maxwell', 9, -1);
 
-INSERT INTO streaming_metadata (job, db, tbl, topic, partition, offset) 
+INSERT INTO metadata.streaming_metadata (job, db, tbl, topic, partition, offset) 
 VALUES('TblADCparent_company_Load', 'adcentraldb', 'tblADCparent_company', 'maxwell', 4, -1);
 
-INSERT INTO streaming_metadata (job, db, tbl, topic, partition, offset) 
+INSERT INTO metadata.streaming_metadata (job, db, tbl, topic, partition, offset) 
 VALUES('TblADCparent_company_advertisers_Load', 'adcentraldb', 'tblADCparent_company_advertisers', 'maxwell', 3, -1);
 
-INSERT INTO streaming_metadata (job, db, tbl, topic, partition, offset) 
+INSERT INTO metadata.streaming_metadata (job, db, tbl, topic, partition, offset) 
 VALUES('TblCRMgeneric_product_credit_Load', 'adcentraldb', 'tblCRMgeneric_product_credit', 'maxwell', 7, -1);
 
-INSERT INTO streaming_metadata (job, db, tbl, topic, partition, offset) 
+INSERT INTO metadata.streaming_metadata (job, db, tbl, topic, partition, offset) 
 VALUES('TblADCquota_Load', 'adcentraldb', 'tblADCquota', 'maxwell', 4, -1);
 
-INSERT INTO streaming_metadata (job, db, tbl, topic, partition, offset) 
+INSERT INTO metadata.streaming_metadata (job, db, tbl, topic, partition, offset) 
 VALUES('TblADScurrency_rates_Load', 'adsystemdb', 'tblADScurrency_rates', 'maxwell', 7, -1);
 
 
 
-INSERT INTO streaming_metadata (job, db, tbl, topic, partition, offset) 
+INSERT INTO metadata.streaming_metadata (job, db, tbl, topic, partition, offset) 
 VALUES('KafkaMetadata_Load', 'adcentraldb', 'tblADCaccounts_salesrep_commissions', 'maxwell', 9, -1);
 
-INSERT INTO streaming_metadata (job, db, tbl, topic, partition, offset) 
+INSERT INTO metadata.streaming_metadata (job, db, tbl, topic, partition, offset) 
 VALUES('KafkaMetadata_Load', 'adcentraldb', 'tblADCadvertiser_rep_revenues', 'maxwell', 1, -1);
 
-INSERT INTO streaming_metadata (job, db, tbl, topic, partition, offset) 
+INSERT INTO metadata.streaming_metadata (job, db, tbl, topic, partition, offset) 
 VALUES('KafkaMetadata_Load', 'adsystemdb', 'tbladvertiser', 'maxwell', 9, -1);
 
-INSERT INTO streaming_metadata (job, db, tbl, topic, partition, offset) 
+INSERT INTO metadata.streaming_metadata (job, db, tbl, topic, partition, offset) 
 VALUES('KafkaMetadata_Load', 'adcentraldb', 'tblADCparent_company', 'maxwell', 4, -1);
 
-INSERT INTO streaming_metadata (job, db, tbl, topic, partition, offset) 
+INSERT INTO metadata.streaming_metadata (job, db, tbl, topic, partition, offset) 
 VALUES('KafkaMetadata_Load', 'adcentraldb', 'tblADCparent_company_advertisers', 'maxwell', 3, -1);
 
-INSERT INTO streaming_metadata (job, db, tbl, topic, partition, offset) 
+INSERT INTO metadata.streaming_metadata (job, db, tbl, topic, partition, offset) 
 VALUES('KafkaMetadata_Load', 'adcentraldb', 'tblCRMgeneric_product_credit', 'maxwell', 7, -1);
 
-INSERT INTO streaming_metadata (job, db, tbl, topic, partition, offset) 
+INSERT INTO metadata.streaming_metadata (job, db, tbl, topic, partition, offset) 
 VALUES('KafkaMetadata_Load', 'adcentraldb', 'tblADCquota', 'maxwell', 4, -1);
 
-INSERT INTO streaming_metadata (job, db, tbl, topic, partition, offset) 
+INSERT INTO metadata.streaming_metadata (job, db, tbl, topic, partition, offset) 
 VALUES('KafkaMetadata_Load', 'adsystemdb', 'tblADScurrency_rates', 'maxwell', 7, -1);
 
 

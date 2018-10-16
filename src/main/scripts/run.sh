@@ -67,6 +67,7 @@ spark-submit \
 --conf "spark.network.timeout=420000" \
 --conf "spark.cleaner.ttl=120" \
 --conf "spark.streaming.backpressure.enabled=false" \
+--conf "spark.streaming.stopGracefullyOnShutdown=true" \
 --supervise \
 RealTime_Load-assembly-1.0-SNAPSHOT.jar -e=prod --class=com.indeed.dataengineering.task.Generic --runClass=com.indeed.dataengineering.task.$cname $executeMode $skipMetadata $checkpoint
 

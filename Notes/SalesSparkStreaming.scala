@@ -92,11 +92,11 @@ var df2 = df1
 for (c <- df1.columns) df2 = df2.withColumnRenamed(c, c.toLowerCase)
 df2.write.format("org.apache.spark.sql.cassandra").mode(SaveMode.Append).options(Map("table" -> table.toLowerCase, "keyspace" -> db)).save
 
-if (table == "tbladvertiser") df2.where("type='Test'").select("id").write.format("org.apache.spark.sql.cassandra").mode(SaveMode.Append).options(Map("table" -> "testadvertiserids", "keyspace" -> db)).save
+if (table == "tbladvertiser") df2.where("type='Test'").select("id").distinct.write.format("org.apache.spark.sql.cassandra").mode(SaveMode.Append).options(Map("table" -> "testadvertiserids", "keyspace" -> db)).save
 
 val latest_dt_modified = sql(s"SELECT MAX($dtCol) FROM df1").collect.head.get(0).toString
 
-val latest_dt_modified_cst = sql(s"SELECT MAX($dtCol) + INTERVAL 5 HOURS FROM df1").collect.head.get(0).toString
+val latest_dt_modified_cst = sql(s"SELECT MAX($dtCol) - INTERVAL 5 HOURS FROM df1").collect.head.get(0).toString
 
 cQuery = s"SELECT MIN(topic) AS topic, MIN(partition) AS partition, MIN(offset) AS offset FROM metadata.kafka_metadata WHERE db = '$db' AND tbl = '$table' AND tbl_date_modified = '$latest_dt_modified'"
 val res = session.execute(cQuery).all.asScala.toArray.head

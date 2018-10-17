@@ -37,13 +37,41 @@ val session = cluster.connect("adcentraldb")
 spark.conf.set("spark.cassandra.connection.host", "172.31.31.252,172.31.22.160,172.31.26.117,172.31.19.127")
 spark.conf.set("spark.cassandra.output.consistency.level", "LOCAL_ONE")
 
-val db = "adcentraldb"
-val table = "tblADCadvertiser_rep_revenues"
-val pk = "activity_date,advertiser_id,relationship"
-val dtCol = "date_modified"
+var cQuery = ""
+
+val tblMap = Map(
+    "adcentraldb.tblADCaccounts_salesrep_commissions" -> "date_modified.date,advertiser_id"
+    ,"adcentraldb.tblADCadvertiser_rep_revenues" -> "date_modified.activity_date,advertiser_id,relationship"
+    ,"adcentraldb.tblADCparent_company_advertisers" -> "date_modified.advertiser_id,parent_company_id"
+    ,"adcentraldb.tblADCparent_company" -> "date_modified.id"
+    ,"adcentraldb.tblCRMgeneric_product_credit" -> "date_modified.id"
+    ,"adcentraldb.tblADCquota" -> "date_modified.year,month,user_id,quota_type"
+    ,"adcentraldb.tblACLusers" -> "date_modified.id"
+    ,"adcentraldb.tbladvertiser" -> "last_updated.id"
+    ,"adcentraldb.tblADScurrency_rates" -> "date_modified.activity_date,to_currency,from_currency"
+)
+
+tblMap.foreach{ case (k,v) => 
+  val db = k.split("\\.")(0)
+  val table = k.split("\\.")(1)
+  val pk = v.split("\\.")(1)
+  val dtCol = v.split("\\.")(0)
+  println(s"""val db = "$db";val table = "$table";val pk = "$pk";val dtCol = "$dtCol"""")
+}
+
+// val db = "adcentraldb";val table = "tblADCaccounts_salesrep_commissions";val pk = "date,advertiser_id";val dtCol = "date_modified"
+// val db = "adcentraldb";val table = "tblADCadvertiser_rep_revenues";val pk = "activity_date,advertiser_id,relationship";val dtCol = "date_modified"
+// val db = "adsystemdb";val table = "tbladvertiser";val pk = "id";val dtCol = "last_updated"
+// val db = "adcentraldb";val table = "tblADCparent_company_advertisers";val pk = "advertiser_id,parent_company_id";val dtCol = "date_modified"
+// val db = "adcentraldb";val table = "tblADCparent_company";val pk = "id";val dtCol = "date_modified"
+// val db = "adcentraldb";val table = "tblCRMgeneric_product_credit";val pk = "id";val dtCol = "date_modified"
+// val db = "adcentraldb";val table = "tblADCquota";val pk = "year,month,user_id,quota_type";val dtCol = "date_modified"
+// val db = "adcentraldb";val table = "tblACLusers";val pk = "id";val dtCol = "date_modified"
+// val db = "adsystemdb";val table = "tblADScurrency_rates";val pk = "activity_date,to_currency,from_currency";val dtCol = "date_modified"
+
 val drop = true
 
-val df = spark.read.parquet(s"s3a://indeed-data/datalake/v1/prod/mysql/$db/$table")
+val df = spark.read.parquet(s"s3a://indeed-data/datalake/v1/prod/mysql/$db/$table/*")
 df1.unpersist
 val df1 = df.repartition(160)
 df1.persist
@@ -57,24 +85,36 @@ if (drop) {
       session.execute(query)
 }
 
-var cQuery = s"CREATE TABLE IF NOT EXISTS $db.$table (" + cols.map(x => x._1 + " " + x._2).mkString(",") + s", PRIMARY KEY ($pk));"
+cQuery = s"CREATE TABLE IF NOT EXISTS $db.$table (" + cols.map(x => x._1 + " " + x._2).mkString(",") + s", offset bigint, PRIMARY KEY ($pk));"
 session.execute(cQuery)
 
 var df2 = df1
 for (c <- df1.columns) df2 = df2.withColumnRenamed(c, c.toLowerCase)
 df2.write.format("org.apache.spark.sql.cassandra").mode(SaveMode.Append).options(Map("table" -> table.toLowerCase, "keyspace" -> db)).save
 
+if (table == "tbladvertiser") df2.where("type='Test'").select("id").write.format("org.apache.spark.sql.cassandra").mode(SaveMode.Append).options(Map("table" -> "testadvertiserids", "keyspace" -> db)).save
+
 val latest_dt_modified = sql(s"SELECT MAX($dtCol) FROM df1").collect.head.get(0).toString
+
+val latest_dt_modified_cst = sql(s"SELECT MAX($dtCol) + INTERVAL 5 HOURS FROM df1").collect.head.get(0).toString
 
 cQuery = s"SELECT MIN(topic) AS topic, MIN(partition) AS partition, MIN(offset) AS offset FROM metadata.kafka_metadata WHERE db = '$db' AND tbl = '$table' AND tbl_date_modified = '$latest_dt_modified'"
 val res = session.execute(cQuery).all.asScala.toArray.head
-val (topic, partition, offset) = (res.getString("topic"), res.getInt("partition"), res.getLong("offset"))
+val (topic_tmp, partition_tmp, offset_tmp) = (res.getString("topic"), res.getInt("partition"), res.getLong("offset"))
+
+val (topic, partition, offset) = if (topic_tmp == null) {
+  cQuery = s"SELECT MIN(topic) AS topic, MIN(partition) AS partition, MIN(offset) AS offset FROM metadata.kafka_metadata WHERE db = '$db' AND tbl = '$table' AND tbl_date_modified = '$latest_dt_modified_cst'"
+  val res = session.execute(cQuery).all.asScala.toArray.head
+  (res.getString("topic"), res.getInt("partition"), res.getLong("offset"))
+} else (topic_tmp, partition_tmp, offset_tmp)
 
 cQuery = s"INSERT INTO metadata.streaming_metadata (job, db, tbl, topic, partition, offset) VALUES('${table.capitalize + "_Load"}', '$db', '$table', '$topic', $partition, $offset)"
 session.execute(cQuery)
 
 cQuery = s"UPDATE stats.streaming_stats SET inserted_records = inserted_records + $insert_count WHERE job = '${table.capitalize + "_Load"}' AND db = '$db' AND tbl = '$table'"
 session.execute(cQuery)
+
+// ALTER TABLE adcentraldb.tblADCadvertiser_rep_revenues ADD offset bigint;
 
 /* 
 alias spark="spark-shell --master yarn --deploy-mode client --executor-memory=1G --num-executors=1 --executor-cores=1 --driver-memory=1G --conf \"spark.driver.extraJavaOptions=-Djava.security.auth.login.config=kafka_server_jaas.conf\" --conf \"spark.executor.extraJavaOptions=-Djava.security.auth.login.config=kafka_server_jaas.conf\" --jars $(echo ~/jars/*.jar | tr ' ' ',') --files ~/kafka.client.truststore.jks,kafka_server_jaas.conf"

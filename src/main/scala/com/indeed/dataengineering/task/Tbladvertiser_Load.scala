@@ -50,8 +50,8 @@ class Tbladvertiser_Load {
 
         val (statQuery1, statQuery2) = getStatQueries(setClause, className, db, tbl)
 
-        val cQuery1 = if (value.opType == "insert" || value.opType == "update") {
-          s"""
+        val (cQuery1, testQuery) = if (value.opType == "insert" || value.opType == "update") {
+          (s"""
              |INSERT INTO adsystemdb.tbladvertiser (id,account_id,company,contact,url,address1,address2,city,state,zip,phone,phone_type,verified_phone,verified_phone_extension,uuidstring,date_created,active,ip_address,referral_id,monthly_budget,expended_budget,type,advertiser_number,show_conversions,billing_threshold,payment_method,industry,agency_discount,is_ad_agency,process_level,estimated_budget,first_revenue_date,last_revenue_date,first_revenue_override,terms,currency,monthly_budget_local,expended_budget_local,billing_threshold_local,estimated_budget_local,employee_count,last_updated)
              |VALUES (
              | ${value.id}
@@ -97,13 +97,17 @@ class Tbladvertiser_Load {
              |,${if (value.employee_count == null) null else "'" + value.employee_count.replaceAll("'", "''") + "'"}
              |,${if (value.last_updated == null) null else "'" + value.last_updated + "'"}
              |)
-           """.stripMargin
+           """.stripMargin,
+          if (value.`type` == "Test") s"INSERT INTO adsystemdb.testadvertiserids (id) VALUES (${value.id})" else "")
         } else {
-          s"""
+          (s"""
              |DELETE FROM adsystemdb.tbladvertiser
              |WHERE id = ${value.id}
-           """.stripMargin
+           """.stripMargin,
+          if (value.`type` == "Test") s"DELETE FROM adsystemdb.testadvertiserids WHERE id = ${value.id}" else "")
         }
+
+
 
         if (executePlain) {
           connector.withSessionDo { session => session.execute(cQuery1) }
@@ -130,6 +134,8 @@ class Tbladvertiser_Load {
 
             session.execute(statQuery1)
 						session.execute(statQuery2)
+
+            if (testQuery != "") session.execute(testQuery)
 
           }
         }

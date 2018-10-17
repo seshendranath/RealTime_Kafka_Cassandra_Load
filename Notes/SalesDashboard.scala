@@ -645,7 +645,6 @@ val offset = sql(s"SELECT MAX(offset) FROM ${tbl}CT").collect.head.get(0).toStri
 val cQuery = s"INSERT INTO metadata.streaming_metadata (job, db, tbl, topic, partition, offset) VALUES('SalesSummary_Load', '$db', '$tbl', '$topic', $partition, $offset)"
 session.execute(cQuery)
 
-
 val tblCRMgeneric_product_creditCT = spark.read.format("org.apache.spark.sql.cassandra").options(Map("table" -> "tblcrmgeneric_product_credit", "keyspace" -> "adcentraldb")).load.select(
   $"activity_date".as("date")
   , $"user_id"
@@ -694,6 +693,12 @@ val partition = partMap(tbl)
 val offset = sql(s"SELECT MAX(offset) FROM ${tbl}CT").collect.head.get(0).toString.toLong
 
 val cQuery = s"INSERT INTO metadata.streaming_metadata (job, db, tbl, topic, partition, offset) VALUES('SalesSummary_Load', '$db', '$tbl', '$topic', $partition, $offset)"
+session.execute(cQuery)
+
+val cQuery = "INSERT INTO streaming_metadata (job, db, tbl, topic, partition, offset) VALUES ('SalesSummary_Load', 'adsystemdb', 'tblADScurrency_rates', 'maxwell', 7, -1)"
+session.execute(cQuery)
+
+val cQuery = "INSERT INTO streaming_metadata (job, db, tbl, topic, partition, offset) VALUES ('SalesSummary_Load', 'adsystemdb', 'tbladvertiser', 'maxwell', 9, -1)"
 session.execute(cQuery)
 
 

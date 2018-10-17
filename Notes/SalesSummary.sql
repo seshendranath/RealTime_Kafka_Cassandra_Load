@@ -15,17 +15,17 @@ Tables:
 
 Table Count:
 -- AdSystem
-SELECT COUNT(*) FROM tbladvertiser; -- Record Count: 22M PK: id
-SELECT COUNT(*) FROM tblADScurrency_rates; -- Record Count: 19K PK: activity_date,to_currency,from_currency
+SELECT COUNT(*) FROM tbladvertiser; -- Record Count: 22M, dtCol: last_updated, PK: id
+SELECT COUNT(*) FROM tblADScurrency_rates; -- Record Count: 19K, dtCol: date_modified, PK: activity_date,to_currency,from_currency
 
 -- AdCentral
-SELECT COUNT(*) FROM tblADCaccounts_salesrep_commissions; -- Record Count: 202M PK: date,advertiser_id
-SELECT COUNT(*) FROM tblADCadvertiser_rep_revenues; -- Record Count: 190M PK: activity_date,advertiser_id,relationship
-SELECT COUNT(*) FROM tblADCparent_company_advertisers; -- Record Count: 13M PK: advertiser_id,parent_company_id
-SELECT COUNT(*) FROM tblADCparent_company; -- Record Count: 10M PK: id
-SELECT COUNT(*) FROM tblCRMgeneric_product_credit; -- Record Count: 206K PK: id
-SELECT COUNT(*) FROM tblADCquota; -- Record Count: 42K PK: year,month,user_id,quota_type
-SELECT COUNT(*) FROM tblACLusers; -- Record Count: 12K PK: id
+SELECT COUNT(*) FROM tblADCaccounts_salesrep_commissions; -- Record Count: 202M, dtCol: date_modified, PK: date,advertiser_id
+SELECT COUNT(*) FROM tblADCadvertiser_rep_revenues; -- Record Count: 190M, dtCol: date_modified, PK: activity_date,advertiser_id,relationship
+SELECT COUNT(*) FROM tblADCparent_company_advertisers; -- Record Count: 13M, dtCol: date_modified, PK: advertiser_id,parent_company_id
+SELECT COUNT(*) FROM tblADCparent_company; -- Record Count: 10M, dtCol: date_modified, PK: id
+SELECT COUNT(*) FROM tblCRMgeneric_product_credit; -- Record Count: 206K, dtCol: date_modified, PK: id
+SELECT COUNT(*) FROM tblADCquota; -- Record Count: 42K, dtCol: date_modified, PK: year,month,user_id,quota_type
+SELECT COUNT(*) FROM tblACLusers; -- Record Count: 12K, dtCol: date_modified, PK: id
 
 
 

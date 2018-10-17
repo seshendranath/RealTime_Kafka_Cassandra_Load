@@ -33,14 +33,12 @@ nohup sh check.sh SalesSummary_Load &
 # Kill the spark streaming app gracefully
 ps -ef | grep spark | grep KafkaMetadata_Load | awk '{print $2}' | xargs kill -SIGTERM
 
-
-sh distcp.sh /user/dataeng/mysql/adsystemdb/tbladvertiser s3a://indeed-data/datalake/v1/prod/mysql/adsystemdb/tbladvertiser 50
-sh distcp.sh /user/dataeng/mysql/adsystemdb/tblADScurrency_rates s3a://indeed-data/datalake/v1/prod/mysql/adsystemdb/tblADScurrency_rates 1
-sh distcp.sh /user/dataeng/mysql/adcentraldb/tblADCaccounts_salesrep_commissions s3a://indeed-data/datalake/v1/prod/mysql/adcentraldb/tblADCaccounts_salesrep_commissions 400
-sh distcp.sh /user/dataeng/mysql/adcentraldb/tblADCadvertiser_rep_revenues s3a://indeed-data/datalake/v1/prod/mysql/adcentraldb/tblADCadvertiser_rep_revenues 180
-sh distcp.sh /user/dataeng/mysql/adcentraldb/tblADCquota s3a://indeed-data/datalake/v1/prod/mysql/adcentraldb/tblADCquota 1
-sh distcp.sh /user/dataeng/mysql/adcentraldb/tblADCparent_company s3a://indeed-data/datalake/v1/prod/mysql/adcentraldb/tblADCparent_company 5
-sh distcp.sh /user/dataeng/mysql/adcentraldb/tblADCparent_company_advertisers s3a://indeed-data/datalake/v1/prod/mysql/adcentraldb/tblADCparent_company_advertisers 5
+sh distcp.sh /user/dataeng/mysql/adcentraldb/tblADCaccounts_salesrep_commissions s3a://indeed-data/datalake/v1/prod/mysql/adcentraldb/tblADCaccounts_salesrep_commissions 500
+sh distcp.sh /user/dataeng/mysql/adcentraldb/tblADCadvertiser_rep_revenues s3a://indeed-data/datalake/v1/prod/mysql/adcentraldb/tblADCadvertiser_rep_revenues 400
+sh distcp.sh /user/dataeng/mysql/adsystemdb/tbladvertiser s3a://indeed-data/datalake/v1/prod/mysql/adsystemdb/tbladvertiser 10
+sh distcp.sh /user/dataeng/mysql/adcentraldb/tblADCparent_company s3a://indeed-data/datalake/v1/prod/mysql/adcentraldb/tblADCparent_company 1
+sh distcp.sh /user/dataeng/mysql/adcentraldb/tblADCparent_company_advertisers s3a://indeed-data/datalake/v1/prod/mysql/adcentraldb/tblADCparent_company_advertisers 1
 sh distcp.sh /user/dataeng/mysql/adcentraldb/tblCRMgeneric_product_credit s3a://indeed-data/datalake/v1/prod/mysql/adcentraldb/tblCRMgeneric_product_credit 1
+sh distcp.sh /user/dataeng/mysql/adcentraldb/tblADCquota s3a://indeed-data/datalake/v1/prod/mysql/adcentraldb/tblADCquota 1
 sh distcp.sh /user/dataeng/mysql/adcentraldb/tblACLusers s3a://indeed-data/datalake/v1/prod/mysql/adcentraldb/tblACLusers 1
-
+sh distcp.sh /user/dataeng/mysql/adsystemdb/tblADScurrency_rates s3a://indeed-data/datalake/v1/prod/mysql/adsystemdb/tblADScurrency_rates 1

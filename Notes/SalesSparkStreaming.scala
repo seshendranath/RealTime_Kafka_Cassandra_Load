@@ -47,8 +47,8 @@ val tblMap = Map(
     ,"adcentraldb.tblCRMgeneric_product_credit" -> "date_modified.id"
     ,"adcentraldb.tblADCquota" -> "date_modified.year,month,user_id,quota_type"
     ,"adcentraldb.tblACLusers" -> "date_modified.id"
-    ,"adcentraldb.tbladvertiser" -> "last_updated.id"
-    ,"adcentraldb.tblADScurrency_rates" -> "date_modified.activity_date,to_currency,from_currency"
+    ,"adsystemdb.tbladvertiser" -> "last_updated.id"
+    ,"adsystemdb.tblADScurrency_rates" -> "date_modified.activity_date,to_currency,from_currency"
 )
 
 tblMap.foreach{ case (k,v) => 
@@ -114,7 +114,6 @@ session.execute(cQuery)
 cQuery = s"UPDATE stats.streaming_stats SET inserted_records = inserted_records + $insert_count WHERE job = '${table.capitalize + "_Load"}' AND db = '$db' AND tbl = '$table'"
 session.execute(cQuery)
 
-// ALTER TABLE adcentraldb.tblADCadvertiser_rep_revenues ADD offset bigint;
 
 /* 
 alias spark="spark-shell --master yarn --deploy-mode client --executor-memory=1G --num-executors=1 --executor-cores=1 --driver-memory=1G --conf \"spark.driver.extraJavaOptions=-Djava.security.auth.login.config=kafka_server_jaas.conf\" --conf \"spark.executor.extraJavaOptions=-Djava.security.auth.login.config=kafka_server_jaas.conf\" --jars $(echo ~/jars/*.jar | tr ' ' ',') --files ~/kafka.client.truststore.jks,kafka_server_jaas.conf"

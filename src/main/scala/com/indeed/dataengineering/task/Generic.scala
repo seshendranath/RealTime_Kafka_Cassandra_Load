@@ -68,14 +68,25 @@ class Generic {
     log.info(s"Starting from the following offsets: $offsetString")
 
     log.info("Read Kafka streams")
-    val kafkaStream = spark
-      .readStream
-      .format("kafka")
-      .option("kafka.bootstrap.servers", brokers)
-      .option(assignoption, assignString)
-      .option("startingOffsets", offsetString)
-      .option("failOnDataLoss", conf.getOrElse("failOnDataLoss", "false"))
-      .load()
+    val kafkaStream = if (conf.getOrElse("sparkCheck", "false").toBoolean) {
+      spark
+        .readStream
+        .format("kafka")
+        .option("kafka.bootstrap.servers", brokers)
+        .option("subscribe", topics)
+        .option("failOnDataLoss", conf.getOrElse("failOnDataLoss", "false"))
+        .load()
+    } else {
+      spark
+        .readStream
+        .format("kafka")
+        .option("kafka.bootstrap.servers", brokers)
+        .option(assignoption, assignString)
+        .option("startingOffsets", offsetString)
+        .option("failOnDataLoss", conf.getOrElse("failOnDataLoss", "false"))
+        .load()
+    }
+
     //.option("subscribe", topics)
     //.option("startingOffsets", s""" {"${conf("kafka.topic")}":{"0":-1}} """)
     //.option("assign", """{"maxwell":[4,7,1,9,3]}""")

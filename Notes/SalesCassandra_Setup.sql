@@ -120,6 +120,37 @@ INSERT INTO metadata.streaming_metadata (job, db, tbl, topic, partition, offset)
 VALUES('KafkaMetadata_Load', 'adcentraldb', 'tblADCsummary_advertiser', 'maxwell', 8, -1);
 
 
+INSERT INTO metadata.streaming_metadata (job, db, tbl, topic, partition, offset) 
+VALUES('Kafka_S3_Load', 'adcentraldb', 'tblADCaccounts_salesrep_commissions', 'maxwell', 9, -1);
+
+INSERT INTO metadata.streaming_metadata (job, db, tbl, topic, partition, offset) 
+VALUES('Kafka_S3_Load', 'adcentraldb', 'tblADCadvertiser_rep_revenues', 'maxwell', 1, -1);
+
+INSERT INTO metadata.streaming_metadata (job, db, tbl, topic, partition, offset) 
+VALUES('Kafka_S3_Load', 'adsystemdb', 'tbladvertiser', 'maxwell', 9, -1);
+
+INSERT INTO metadata.streaming_metadata (job, db, tbl, topic, partition, offset) 
+VALUES('Kafka_S3_Load', 'adcentraldb', 'tblADCparent_company', 'maxwell', 4, -1);
+
+INSERT INTO metadata.streaming_metadata (job, db, tbl, topic, partition, offset) 
+VALUES('Kafka_S3_Load', 'adcentraldb', 'tblADCparent_company_advertisers', 'maxwell', 3, -1);
+
+INSERT INTO metadata.streaming_metadata (job, db, tbl, topic, partition, offset) 
+VALUES('Kafka_S3_Load', 'adcentraldb', 'tblCRMgeneric_product_credit', 'maxwell', 7, -1);
+
+INSERT INTO metadata.streaming_metadata (job, db, tbl, topic, partition, offset) 
+VALUES('Kafka_S3_Load', 'adcentraldb', 'tblADCquota', 'maxwell', 4, -1);
+
+INSERT INTO metadata.streaming_metadata (job, db, tbl, topic, partition, offset) 
+VALUES('Kafka_S3_Load', 'adsystemdb', 'tblADScurrency_rates', 'maxwell', 7, -1);
+
+INSERT INTO metadata.streaming_metadata (job, db, tbl, topic, partition, offset) 
+VALUES('Kafka_S3_Load', 'adcentraldb', 'tblACLusers', 'maxwell', 0, -1);
+
+INSERT INTO metadata.streaming_metadata (job, db, tbl, topic, partition, offset) 
+VALUES('Kafka_S3_Load', 'adcentraldb', 'tblADCsummary_advertiser', 'maxwell', 8, -1);
+
+
 
 CREATE TABLE stats.streaming_stats
 (

@@ -5,8 +5,10 @@ package com.indeed.dataengineering.utilities
   */
 
 import com.github.nscala_time.time.Imports.DateTime
+
 import scala.collection.mutable
 import org.apache.spark.sql._
+import org.apache.spark.sql.types._
 
 object Utils {
 
@@ -98,4 +100,25 @@ object Utils {
     (statQuery1, statQuery2)
   }
 
+
+  def postgresqlToSparkDataType(dataType: String): DataType = {
+
+    dataType match {
+      case "DATETIME" => TimestampType
+      case "TIME" => TimestampType
+      case "DATE" => DateType
+      case "SMALLINT" => IntegerType
+      case "TIMESTAMP" => TimestampType
+      case "FLOAT" => FloatType
+      case "INTEGER" => IntegerType
+      case "VARCHAR" => StringType
+      case "NUMERIC" => IntegerType
+      case "BIGINT" => LongType
+      case "UUID" => StringType
+      case "BOOLEAN" => BooleanType
+      case "DOUBLE" => DoubleType
+      case "YEAR" => IntegerType
+      case _ => StringType
+    }
+  }
 }

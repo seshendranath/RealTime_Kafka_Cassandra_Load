@@ -58,7 +58,10 @@ libraryDependencies ++= Seq(
   "com.twitter" % "jsr166e" % "1.1.0",
 
   // Testing only
-  "org.scala-lang" % "scala-xml" % "2.11.0-M4"
+  "org.scala-lang" % "scala-xml" % "2.11.0-M4",
+
+  // Postgresql Driver
+  "org.postgresql" % "postgresql" % "42.2.2"
 
 )
 

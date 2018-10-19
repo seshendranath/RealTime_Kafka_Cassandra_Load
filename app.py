@@ -49,7 +49,7 @@ def pandas_factory(colnames, rows):
     return pd.DataFrame(rows, columns=colnames)
 
 
-cluster = Cluster(contact_points=['172.31.31.252','172.31.22.160','172.31.26.117','172.31.19.127'])
+cluster = Cluster(contact_points=['172.31.10.148', '172.31.15.185', '172.31.15.43', '172.31.4.148'])
 # cluster = Cluster(contact_points=['34.230.53.208', '52.90.234.117', '52.90.234.213', '107.23.201.226'])
 
 session = cluster.connect()
@@ -60,7 +60,7 @@ session.default_fetch_size = 10000000  # needed for large queries, otherwise dri
 
 @app.callback(Output('qtd-revenue', 'figure'), [Input('sales-revenue-update', 'n_intervals')])
 def gen_revenue_data(interval):
-    query = "SELECT SUM(total_revenue) AS total_revenue, SUM(quota) AS quota FROM sales_revenue_quota_summary_by_quarter WHERE year = 2018 and quarter = 3"
+    query = "SELECT SUM(total_revenue) AS total_revenue, SUM(quota) AS quota FROM sales_revenue_quota_summary_by_quarter WHERE year = 2018 and quarter = 4"
     rows = session.execute(query)
     df = rows._current_rows
     total_revenue = (df['total_revenue'] / 100000).astype(int)[0]
@@ -89,7 +89,7 @@ def gen_revenue_data(interval):
     data = [trace0]
     layout = go.Layout(
         margin=go.layout.Margin(l=140),
-        title='Total Revenue for year 2018 and quarter 3: {}'.format("${:,.0f}".format(total_revenue))
+        title='Total Revenue for year 2018 and quarter 4: {}'.format("${:,.0f}".format(total_revenue))
     )
 
     return go.Figure(data=data, layout=layout)
@@ -125,7 +125,7 @@ def gen_revenue_data(interval):
     #
     # data = [trace2, trace1]
     # layout = go.Layout(
-    #     barmode='stack',  title='Total Revenue for year 2018 and quarter 3: {}'.format("${:,.0f}".format(total_revenue))
+    #     barmode='stack',  title='Total Revenue for year 2018 and quarter 4: {}'.format("${:,.0f}".format(total_revenue))
     # )
     #
     # return go.Figure(data=data, layout=layout)
@@ -133,7 +133,7 @@ def gen_revenue_data(interval):
 
 @app.callback(Output('qtd-revenue-composition', 'figure'), [Input('revenue-composition-update', 'n_intervals')])
 def gen_revenue_data(interval):
-    query = "SELECT SUM(sales_revenue) AS sales_revenue, SUM(agency_revenue) AS agency_revenue, SUM(strategic_revenue) AS strategic_revenue, SUM(sales_new_revenue) AS sales_new_revenue, SUM(new_parent_revenue) AS new_parent_revenue FROM sales_revenue_summary_by_quarter WHERE year = 2018 and quarter = 3"
+    query = "SELECT SUM(sales_revenue) AS sales_revenue, SUM(agency_revenue) AS agency_revenue, SUM(strategic_revenue) AS strategic_revenue, SUM(sales_new_revenue) AS sales_new_revenue, SUM(new_parent_revenue) AS new_parent_revenue FROM sales_revenue_summary_by_quarter WHERE year = 2018 and quarter = 4"
     rows = session.execute(query)
     df = rows._current_rows
     sales_revenue = (df['sales_revenue'] / 100000).astype(int)[0]
@@ -160,7 +160,7 @@ def gen_revenue_data(interval):
 
     data = [trace0]
     layout = go.Layout(
-        title='Revenue Composition for year 2018 and quarter 3'
+        title='Revenue Composition for year 2018 and quarter 4'
     )
 
     return go.Figure(data=data, layout=layout)
@@ -168,7 +168,7 @@ def gen_revenue_data(interval):
 
 @app.callback(Output('datatable', 'rows'), [Input('sales-rep-revenue-update', 'n_intervals')])
 def gen_revenue_data(interval):
-    query = "SELECT year, quarter, user_id, quota, total_revenue FROM sales_revenue_quota_summary_by_user_quarter WHERE year = 2018 and quarter = 3  and user_id IN (1001, 1277, 1962, 10889, 4442)"
+    query = "SELECT year, quarter, user_id, quota, total_revenue FROM sales_revenue_quota_summary_by_user_quarter WHERE year = 2018 and quarter = 4  and user_id IN (1001, 1277, 1962, 10889, 4442)"
 
     rows = session.execute(query)
     df = rows._current_rows
@@ -179,4 +179,6 @@ def gen_revenue_data(interval):
 
 
 if __name__ == '__main__':
-    app.run_server(host='%s' % (sys.argv[1]))
+    app.config['SERVER_NAME'] = 'jaffa:8050'
+    app.run_server(host='%s' % (sys.argv[1]),ssl_context='adhoc')
+

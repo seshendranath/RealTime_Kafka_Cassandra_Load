@@ -86,12 +86,13 @@ import org.apache.spark.sql.types._
 import scala.collection.mutable
 import collection.JavaConverters._
 
+val cassandraHosts = "172.31.10.148,172.31.15.185,172.31.15.43,172.31.4.148"
 
 spark.conf.set("spark.sql.shuffle.partitions", "160")
 spark.conf.set("spark.cassandra.input.consistency.level", "LOCAL_ONE")
 spark.conf.set("spark.cassandra.output.consistency.level", "LOCAL_ONE")
 
-spark.conf.set("spark.cassandra.connection.host", "172.31.31.252,172.31.22.160,172.31.26.117,172.31.19.127")
+spark.conf.set("spark.cassandra.connection.host", cassandraHosts)
 spark.conf.set("spark.driver.maxResultSize","2g")
 spark.conf.set("spark.streaming.backpressure.enabled", true)
 spark.conf.set("spark.streaming.backpressure.initialRate", 100)
@@ -103,10 +104,10 @@ val Array(brokers, topics) = Array("ec2-54-160-85-68.compute-1.amazonaws.com:909
 
 val timestampFormat = new SimpleDateFormat("yyyy-MM-dd' 'HH:mm:ss")
 
-val cluster = Cluster.builder().addContactPoint("172.31.31.252").build()
+val cluster = Cluster.builder().addContactPoint("172.31.10.148").build()
 val session = cluster.connect("adcentraldb")
 
-val connector = CassandraConnector(spark.sparkContext.getConf.set("spark.cassandra.connection.host", "172.31.31.252,172.31.22.160,172.31.26.117,172.31.19.127"))
+val connector = CassandraConnector(spark.sparkContext.getConf.set("spark.cassandra.connection.host", cassandraHosts))
 
 val kafkaStream = spark.readStream.format("kafka").option("kafka.bootstrap.servers", brokers).option("subscribe", topics).option("failOnDataLoss", "false").load()
 
@@ -695,10 +696,10 @@ val offset = sql(s"SELECT MAX(offset) FROM ${tbl}CT").collect.head.get(0).toStri
 val cQuery = s"INSERT INTO metadata.streaming_metadata (job, db, tbl, topic, partition, offset) VALUES('SalesSummary_Load', '$db', '$tbl', '$topic', $partition, $offset)"
 session.execute(cQuery)
 
-val cQuery = "INSERT INTO streaming_metadata (job, db, tbl, topic, partition, offset) VALUES ('SalesSummary_Load', 'adsystemdb', 'tblADScurrency_rates', 'maxwell', 7, -1)"
+val cQuery = "INSERT INTO metadata.streaming_metadata (job, db, tbl, topic, partition, offset) VALUES ('SalesSummary_Load', 'adsystemdb', 'tblADScurrency_rates', 'maxwell', 7, -1)"
 session.execute(cQuery)
 
-val cQuery = "INSERT INTO streaming_metadata (job, db, tbl, topic, partition, offset) VALUES ('SalesSummary_Load', 'adsystemdb', 'tbladvertiser', 'maxwell', 9, -1)"
+val cQuery = "INSERT INTO metadata.streaming_metadata (job, db, tbl, topic, partition, offset) VALUES ('SalesSummary_Load', 'adsystemdb', 'tbladvertiser', 'maxwell', 9, -1)"
 session.execute(cQuery)
 
 
@@ -890,7 +891,7 @@ val sales_revenue_summary_by_user_quarter = sql(query)
 sales_revenue_summary_by_user_quarter.persist
 sales_revenue_summary_by_user_quarter.count
 sales_revenue_summary_by_user_quarter.createOrReplaceTempView("sales_revenue_summary_by_user_quarter")
-sql("SELECT SUM(sales_revenue) + SUM(agency_revenue) + SUM(strategic_revenue) + SUM(sales_new_revenue) + SUM(new_parent_revenue) AS total_revenue, SUM(sales_revenue), SUM(agency_revenue), SUM(strategic_revenue), SUM(sales_new_revenue), SUM(new_parent_revenue) FROM sales_revenue_summary_by_user_quarter WHERE year = 2018 and quarter = 3").show(false)
+sql("SELECT (SUM(sales_revenue) + SUM(agency_revenue) + SUM(strategic_revenue) + SUM(sales_new_revenue) + SUM(new_parent_revenue))/10000 AS total_revenue, SUM(sales_revenue)/100000, SUM(agency_revenue)/100000, SUM(strategic_revenue)/100000, SUM(sales_new_revenue)/100000, SUM(new_parent_revenue)/100000 FROM sales_revenue_summary_by_user_quarter WHERE year = 2018 and quarter = 4").show(false)
 
 sales_revenue_summary_by_user_quarter.write.format("org.apache.spark.sql.cassandra").mode(SaveMode.Append).options(Map("table" -> "sales_revenue_summary_by_user_quarter", "keyspace" -> "adcentraldb")).save
 sales_revenue_summary_by_user_quarter.select("year", "quarter", "user_id", "total_revenue").write.format("org.apache.spark.sql.cassandra").mode(SaveMode.Append).options(Map("table" -> "sales_revenue_quota_summary_by_user_quarter", "keyspace" -> "adcentraldb")).save
@@ -1142,13 +1143,15 @@ tblADCadvertiser_rep_revenuesSummaryQuery.stop
 tblCRMgeneric_product_creditSummaryQuery.stop
 
 
+
 val sales_revenue_quota_summary_by_quarter = spark.read.format("org.apache.spark.sql.cassandra").options(Map("table" -> "sales_revenue_quota_summary_by_quarter", "keyspace" -> "adcentraldb")).load
 sales_revenue_quota_summary_by_quarter.persist
 sales_revenue_quota_summary_by_quarter.count
 sales_revenue_quota_summary_by_quarter.createOrReplaceTempView("sales_revenue_quota_summary_by_quarter")
-sql("SELECT * FROM sales_revenue_quota_summary_by_quarter WHERE year = 2018 and quarter = 3").show(false)
-sql("SELECT SUM(sales_revenue), SUM(agency_revenue), SUM(strategic_revenue), SUM(sales_new_revenue) FROM sales_revenue_summary_by_user_quarter WHERE year = 2018 and quarter = 3").show(false)
-SELECT SUM (sales_revenue), SUM(agency_revenue), SUM(strategic_revenue), SUM(sales_new_revenue) FROM adcentraldb.sales_revenue_summary_by_user_quarter WHERE year = 2018 and quarter = 3;
-SELECT SUM (sales_revenue), SUM(agency_revenue), SUM(strategic_revenue), SUM(sales_new_revenue) FROM adcentraldb.sales_revenue_summary_by_quarter WHERE year = 2018 and quarter = 3;
+sql("SELECT * FROM sales_revenue_quota_summary_by_quarter WHERE year = 2018 and quarter = 4").show(false)
+sql("SELECT SUM(sales_revenue), SUM(agency_revenue), SUM(strategic_revenue), SUM(sales_new_revenue) FROM sales_revenue_summary_by_user_quarter WHERE year = 2018 and quarter = 4").show(false)
+
+SELECT SUM(sales_revenue), SUM(agency_revenue), SUM(strategic_revenue), SUM(sales_new_revenue) FROM adcentraldb.sales_revenue_summary_by_user_quarter WHERE year = 2018 and quarter = 4;
+SELECT SUM(sales_revenue), SUM(agency_revenue), SUM(strategic_revenue), SUM(sales_new_revenue) FROM adcentraldb.sales_revenue_summary_by_quarter WHERE year = 2018 and quarter = 4;
 
 

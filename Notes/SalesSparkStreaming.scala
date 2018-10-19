@@ -31,11 +31,23 @@ def getColsFromDF(df: DataFrame, exclude: Seq[String] = Seq()): Array[(String, S
   cols.toArray
 }
 
-val cluster = Cluster.builder().addContactPoint("172.31.31.252").build()
+val cluster = Cluster.builder().addContactPoint("172.31.10.148").build()
 val session = cluster.connect("adcentraldb")
 
-spark.conf.set("spark.cassandra.connection.host", "172.31.31.252,172.31.22.160,172.31.26.117,172.31.19.127")
+spark.conf.set("spark.cassandra.connection.host", "172.31.10.148,172.31.15.185,172.31.15.43,172.31.4.148")
 spark.conf.set("spark.cassandra.output.consistency.level", "LOCAL_ONE")
+
+val partMap = Map(
+   "tblADCaccounts_salesrep_commissions" -> 9
+  ,"tblCRMgeneric_product_credit" -> 7
+  ,"tblADCadvertiser_rep_revenues" -> 1
+  ,"tblADScurrency_rates" -> 7
+  ,"tblADCquota" -> 4
+  ,"tblACLusers" -> 0
+  ,"tblADCparent_company" -> 4
+  ,"tblADCparent_company_advertisers" -> 3
+  ,"tbladvertiser" -> 9
+)
 
 var cQuery = ""
 
@@ -59,15 +71,15 @@ tblMap.foreach{ case (k,v) =>
   println(s"""val db = "$db";val table = "$table";val pk = "$pk";val dtCol = "$dtCol"""")
 }
 
+// val db = "adsystemdb";val table = "tbladvertiser";val pk = "id";val dtCol = "last_updated"
+// val db = "adsystemdb";val table = "tblADScurrency_rates";val pk = "activity_date,to_currency,from_currency";val dtCol = "date_modified"
 // val db = "adcentraldb";val table = "tblADCaccounts_salesrep_commissions";val pk = "date,advertiser_id";val dtCol = "date_modified"
 // val db = "adcentraldb";val table = "tblADCadvertiser_rep_revenues";val pk = "activity_date,advertiser_id,relationship";val dtCol = "date_modified"
-// val db = "adsystemdb";val table = "tbladvertiser";val pk = "id";val dtCol = "last_updated"
 // val db = "adcentraldb";val table = "tblADCparent_company_advertisers";val pk = "advertiser_id,parent_company_id";val dtCol = "date_modified"
 // val db = "adcentraldb";val table = "tblADCparent_company";val pk = "id";val dtCol = "date_modified"
 // val db = "adcentraldb";val table = "tblCRMgeneric_product_credit";val pk = "id";val dtCol = "date_modified"
 // val db = "adcentraldb";val table = "tblADCquota";val pk = "year,month,user_id,quota_type";val dtCol = "date_modified"
 // val db = "adcentraldb";val table = "tblACLusers";val pk = "id";val dtCol = "date_modified"
-// val db = "adsystemdb";val table = "tblADScurrency_rates";val pk = "activity_date,to_currency,from_currency";val dtCol = "date_modified"
 
 val drop = true
 
@@ -105,7 +117,8 @@ val (topic_tmp, partition_tmp, offset_tmp) = (res.getString("topic"), res.getInt
 val (topic, partition, offset) = if (topic_tmp == null) {
   cQuery = s"SELECT MIN(topic) AS topic, MIN(partition) AS partition, MIN(offset) AS offset FROM metadata.kafka_metadata WHERE db = '$db' AND tbl = '$table' AND tbl_date_modified = '$latest_dt_modified_cst'"
   val res = session.execute(cQuery).all.asScala.toArray.head
-  (res.getString("topic"), res.getInt("partition"), res.getLong("offset"))
+  val (topic_tmp1, partition_tmp1, offset_tmp1) = (res.getString("topic"), res.getInt("partition"), res.getLong("offset"))
+  if (topic_tmp1 == null) ("maxwell", partMap(table), -1) else (topic_tmp1, partition_tmp1, offset_tmp1) 
 } else (topic_tmp, partition_tmp, offset_tmp)
 
 cQuery = s"INSERT INTO metadata.streaming_metadata (job, db, tbl, topic, partition, offset) VALUES('${table.capitalize + "_Load"}', '$db', '$table', '$topic', $partition, $offset)"

@@ -1,10 +1,10 @@
-CREATE KEYSPACE adcentraldb WITH REPLICATION = { 'class' : 'SimpleStrategy', 'replication_factor' : 2 };
+CREATE KEYSPACE adcentraldb WITH REPLICATION = { 'class' : 'SimpleStrategy', 'replication_factor' : 1 };
 
-CREATE KEYSPACE adsystemdb WITH REPLICATION = { 'class' : 'SimpleStrategy', 'replication_factor' : 2 };
+CREATE KEYSPACE adsystemdb WITH REPLICATION = { 'class' : 'SimpleStrategy', 'replication_factor' : 1 };
 
-CREATE KEYSPACE metadata WITH REPLICATION = { 'class' : 'SimpleStrategy', 'replication_factor' : 2 };
+CREATE KEYSPACE metadata WITH REPLICATION = { 'class' : 'SimpleStrategy', 'replication_factor' : 1 };
 
-CREATE KEYSPACE stats WITH REPLICATION = { 'class' : 'SimpleStrategy', 'replication_factor' : 2 };
+CREATE KEYSPACE stats WITH REPLICATION = { 'class' : 'SimpleStrategy', 'replication_factor' : 1 };
 
 CREATE TABLE adsystemdb.testadvertiserids (id bigint PRIMARY KEY);
 

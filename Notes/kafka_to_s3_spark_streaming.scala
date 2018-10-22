@@ -192,8 +192,11 @@ tables.foreach{tbl =>
 // a.select(from_json($"value", js).as("data")).select($"data.*").show(false)
 
 
-val tbl = "tblADCparent_company"
-val a = Seq("""{"id":1038797,"company":"Step II Inc","sales_region":"","user_id":0,"first_revenue_date":"2016-06-01","default_advertiser_id":0,"prospecting_status":"UNAVAILABLE","hq_city":"Omaha","hq_state":"NE","hq_zip":"68130-4614","hq_country":"US","duns":"033229449","location_type":"PRIMARY_ADDRESS","revenue":340000,"total_employees":8,"franchise_operation_type":"","is_subsidiary":0,"doing_business_as":"Edgewood Vista Senior Living","exchange_symbol":"","exchange":"","USSIC":"80510000","USSIC_description":"Skilled nursing care facilities","NAICS":"623110","NAICS_description":"Nursing Care Facilities","parent_name":"","parent_duns":"","ultimate_domestic_parent_name":"","ultimate_domestic_parent_duns":"","ultimate_parent_name":"","ultimate_parent_duns":"","active_jobs":219,"date_created":"2015-05-04 23:12:37","is_lead_eligible":0,"lead_score":null,"date_modified":"2018-10-22 18:15:50"}""").toDS
-val js = StructType(res(tbl).map(c => StructField(c._1, postgresqlToSparkDataType(c._2))))
-a.select(from_json($"value", js).as("data")).select($"data.*").show(false)
+// val tbl = "tblADCparent_company"
+// val a = Seq("""{"id":1038797,"company":"Step II Inc","sales_region":"","user_id":0,"first_revenue_date":"2016-06-01","default_advertiser_id":0,"prospecting_status":"UNAVAILABLE","hq_city":"Omaha","hq_state":"NE","hq_zip":"68130-4614","hq_country":"US","duns":"033229449","location_type":"PRIMARY_ADDRESS","revenue":340000,"total_employees":8,"franchise_operation_type":"","is_subsidiary":0,"doing_business_as":"Edgewood Vista Senior Living","exchange_symbol":"","exchange":"","USSIC":"80510000","USSIC_description":"Skilled nursing care facilities","NAICS":"623110","NAICS_description":"Nursing Care Facilities","parent_name":"","parent_duns":"","ultimate_domestic_parent_name":"","ultimate_domestic_parent_duns":"","ultimate_parent_name":"","ultimate_parent_duns":"","active_jobs":219,"date_created":"2015-05-04 23:12:37","is_lead_eligible":0,"lead_score":null,"date_modified":"2018-10-22 18:15:50"}""").toDS
+// val js = StructType(res(tbl).map(c => StructField(c._1, postgresqlToSparkDataType(c._2))))
+// a.select(from_json($"value", js).as("data")).select($"data.*").selectExpr(s"$boolString").show(false)
+
+
+// val boolString = res(tbl).filter(_._2 == "BOOLEAN").map(c => s"CAST(${c._1} AS Boolean) AS ${c._1}").mkString(",")
 

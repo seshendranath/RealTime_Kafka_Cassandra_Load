@@ -32,9 +32,11 @@ class Kafka_S3_Load {
 
     tables.foreach { tbl =>
 
+      val boolString = Array("topic", "partition", "offset", "opType") ++ res(tbl).map(c => if (c._2 == "BOOLEAN") s"CAST(${c._1} AS Boolean) AS ${c._1}" else c._1)
+
       log.info(s"Extracting Schema for table $tbl")
       val js = StructType(res(tbl).map(c => StructField(c._1, postgresqlToSparkDataType(c._2))))
-      val df = rawData.select($"topic", $"partition", $"offset", from_json($"value", MessageSchema.jsonSchema).as("value")).filter($"value.table" === tbl).select($"topic", $"partition", $"offset", $"value.type".as("opType"), from_json($"value.data", js).as("data")).select($"topic", $"partition", $"offset", $"opType", $"data.*").where("opType IN ('insert', 'update', 'delete')")
+      val df = rawData.select($"topic", $"partition", $"offset", from_json($"value", MessageSchema.jsonSchema).as("value")).filter($"value.table" === tbl).select($"topic", $"partition", $"offset", $"value.type".as("opType"), from_json($"value.data", js).as("data")).select($"topic", $"partition", $"offset", $"opType", $"data.*").selectExpr(boolString: _*).where("opType IN ('insert', 'update', 'delete')")
 
       log.info(s"Starting Stream for table $tbl")
       val dfQuery = df.withColumn("dt", current_date).withColumn("hr", hour(current_timestamp)).writeStream.format(conf("targetFormat")).option("checkpointLocation", conf("baseLoc") + s"/checkpoint/$tbl/").option("path", conf("baseLoc") + s"/$tbl").trigger(Trigger.ProcessingTime(s"${conf("runInterval")} minutes")).partitionBy("dt", "hr").start()

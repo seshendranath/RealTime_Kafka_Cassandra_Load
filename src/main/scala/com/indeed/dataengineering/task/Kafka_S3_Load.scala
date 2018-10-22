@@ -33,7 +33,7 @@ class Kafka_S3_Load {
     tables.foreach { tbl =>
 
       val boolString = Array("topic", "partition", "offset", "opType") ++ res(tbl).map(c => if (c._2 == "BOOLEAN") s"CAST(${c._1} AS Boolean) AS ${c._1}" else c._1)
-      log.info(s"Bool String for $tbl: $boolString")
+      log.info(s"Bool String for $tbl: ${boolString.mkString(",")}")
 
       log.info(s"Extracting Schema for table $tbl")
       val js = StructType(res(tbl).map(c => StructField(c._1, postgresqlToSparkDataType(c._2))))

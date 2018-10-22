@@ -33,9 +33,12 @@ class Kafka_S3_Load {
     tables.foreach { tbl =>
 
       val boolString = Array("topic", "partition", "offset", "opType") ++ res(tbl).map(c => if (c._2 == "BOOLEAN") s"CAST(${c._1} AS Boolean) AS ${c._1}" else c._1)
+      log.info(s"Bool String for $tbl: $boolString")
 
       log.info(s"Extracting Schema for table $tbl")
       val js = StructType(res(tbl).map(c => StructField(c._1, postgresqlToSparkDataType(c._2))))
+      log.info(s"Extracted Schema for $tbl: $js")
+
       val df = rawData.select($"topic", $"partition", $"offset", from_json($"value", MessageSchema.jsonSchema).as("value")).filter($"value.table" === tbl).select($"topic", $"partition", $"offset", $"value.type".as("opType"), from_json($"value.data", js).as("data")).select($"topic", $"partition", $"offset", $"opType", $"data.*").selectExpr(boolString: _*).where("opType IN ('insert', 'update', 'delete')")
 
       log.info(s"Starting Stream for table $tbl")

@@ -24,10 +24,10 @@ class AutoGenerateScalaCode {
     val caseStmt: String = "case class " + table.capitalize + "(\n opType: String\n" + df.dtypes.map { case (col, dtype) => "," + col + ": " + getScalaType(pk, col, dtype) }.mkString("\n") + "\n)"
 
     // Generate PK Statement
-    val pkSchema: String = "\n\t\t\t\t\t\t " + df.dtypes.filter { case (col, _) => pk contains col }.map { case (col, dtype) => s"""StructField("$col", $dtype)""" }.mkString("\n\t\t\t\t\t\t,")
+    val pkSchema: String = "\n\t\t\t\t\t\t " + df.dtypes.filter { case (col, _) => pk contains col }.map { case (col, dtype) => s"""StructField("$col", ${convertBoolToInt(dtype)})""" }.mkString("\n\t\t\t\t\t\t,")
 
     // Generate Data Schema
-    val tableSchema: String = "\n\t\t\t\t\t\t " + df.dtypes.map { case (col, dtype) => s"""StructField("$col", $dtype)""" }.mkString("\n\t\t\t\t\t\t,")
+    val tableSchema: String = "\n\t\t\t\t\t\t " + df.dtypes.map { case (col, dtype) => s"""StructField("$col", ${convertBoolToInt(dtype)})""" }.mkString("\n\t\t\t\t\t\t,")
 
     // Generates JSON Schema
     val jSchema: String =

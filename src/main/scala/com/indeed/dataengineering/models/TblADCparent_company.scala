@@ -24,7 +24,7 @@ case class TblADCparent_company(
                                  , revenue: Option[BigInt]
                                  , total_employees: Option[Int]
                                  , franchise_operation_type: String
-                                 , is_subsidiary: Option[Boolean]
+                                 , is_subsidiary: Option[Int]
                                  , doing_business_as: String
                                  , exchange_symbol: String
                                  , exchange: String
@@ -40,7 +40,7 @@ case class TblADCparent_company(
                                  , ultimate_parent_duns: String
                                  , active_jobs: Option[BigInt]
                                  , date_created: Timestamp
-                                 , is_lead_eligible: Option[Boolean]
+                                 , is_lead_eligible: Option[Int]
                                  , lead_score: Option[Int]
                                  , date_modified: Timestamp
                                )
@@ -72,7 +72,7 @@ object TblADCparent_company {
       , StructField("revenue", LongType)
       , StructField("total_employees", IntegerType)
       , StructField("franchise_operation_type", StringType)
-      , StructField("is_subsidiary", BooleanType)
+      , StructField("is_subsidiary", IntegerType)
       , StructField("doing_business_as", StringType)
       , StructField("exchange_symbol", StringType)
       , StructField("exchange", StringType)
@@ -88,7 +88,7 @@ object TblADCparent_company {
       , StructField("ultimate_parent_duns", StringType)
       , StructField("active_jobs", LongType)
       , StructField("date_created", TimestampType)
-      , StructField("is_lead_eligible", BooleanType)
+      , StructField("is_lead_eligible", IntegerType)
       , StructField("lead_score", IntegerType)
       , StructField("date_modified", TimestampType)))),
     StructField("old", StructType(Array(
@@ -108,7 +108,7 @@ object TblADCparent_company {
       , StructField("revenue", LongType)
       , StructField("total_employees", IntegerType)
       , StructField("franchise_operation_type", StringType)
-      , StructField("is_subsidiary", BooleanType)
+      , StructField("is_subsidiary", IntegerType)
       , StructField("doing_business_as", StringType)
       , StructField("exchange_symbol", StringType)
       , StructField("exchange", StringType)
@@ -124,7 +124,7 @@ object TblADCparent_company {
       , StructField("ultimate_parent_duns", StringType)
       , StructField("active_jobs", LongType)
       , StructField("date_created", TimestampType)
-      , StructField("is_lead_eligible", BooleanType)
+      , StructField("is_lead_eligible", IntegerType)
       , StructField("lead_score", IntegerType)
       , StructField("date_modified", TimestampType))))
   ))

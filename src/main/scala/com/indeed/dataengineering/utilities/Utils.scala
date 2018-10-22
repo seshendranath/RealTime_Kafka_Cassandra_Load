@@ -14,6 +14,8 @@ object Utils {
 
   val quoteTypes = Set("StringType", "DateType", "TimestampType")
 
+  def convertBoolToInt(dtype: String): String = if (dtype == "BooleanType") "IntegerType" else dtype
+
   def sparkToScalaDataType(dataType: String): String = {
     val decimalPattern = """DecimalType\(\d+,\s?\d+\)""".r
 
@@ -24,7 +26,7 @@ object Utils {
       case "IntegerType" => "Int"
       case "DateType" => "Date"
       case "TimestampType" => "Timestamp"
-      case "BooleanType" => "Boolean"
+      case "BooleanType" => "Int"
       case decimalPattern() => "BigDecimal" //"Double"// dataType.replace("Type", "").toLowerCase
       case _ => "String"
     }
@@ -105,17 +107,17 @@ object Utils {
 
     dataType match {
       case "DATETIME" => TimestampType
-      case "TIME" => TimestampType
+      case "TIME" => StringType
       case "DATE" => DateType
       case "SMALLINT" => IntegerType
       case "TIMESTAMP" => TimestampType
-      case "FLOAT" => FloatType
+      case "FLOAT" => DoubleType
       case "INTEGER" => IntegerType
       case "VARCHAR" => StringType
-      case "NUMERIC" => IntegerType
+      case "NUMERIC" => DoubleType
       case "BIGINT" => LongType
       case "UUID" => StringType
-      case "BOOLEAN" => BooleanType
+      case "BOOLEAN" => IntegerType
       case "DOUBLE" => DoubleType
       case "YEAR" => IntegerType
       case _ => StringType

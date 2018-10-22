@@ -42,6 +42,8 @@ class TblADCparent_company_Load {
 
       def process(value: TblADCparent_company): Unit = {
 
+        def intBool(i: Any): Any = if (i == null) null else if (i == 0) false else true
+
         val setClause = getSetClause(value.opType)
 
         val metaQuery = getMetaQueries(className, db, tbl, value.topic, value.partition, value.offset)
@@ -69,7 +71,7 @@ class TblADCparent_company_Load {
              |,${value.revenue.orNull}
              |,${value.total_employees.orNull}
              |,${if (value.franchise_operation_type == null) null else "'" + value.franchise_operation_type.replaceAll("'", "''") + "'"}
-             |,${value.is_subsidiary.orNull}
+             |,${intBool(value.is_subsidiary.orNull)}
              |,${if (value.doing_business_as == null) null else "'" + value.doing_business_as.replaceAll("'", "''") + "'"}
              |,${if (value.exchange_symbol == null) null else "'" + value.exchange_symbol.replaceAll("'", "''") + "'"}
              |,${if (value.exchange == null) null else "'" + value.exchange.replaceAll("'", "''") + "'"}
@@ -85,7 +87,7 @@ class TblADCparent_company_Load {
              |,${if (value.ultimate_parent_duns == null) null else "'" + value.ultimate_parent_duns.replaceAll("'", "''") + "'"}
              |,${value.active_jobs.orNull}
              |,${if (value.date_created == null) null else "'" + value.date_created + "'"}
-             |,${value.is_lead_eligible.orNull}
+             |,${intBool(value.is_lead_eligible.orNull)}
              |,${value.lead_score.orNull}
              |,${if (value.date_modified == null) null else "'" + value.date_modified + "'"}
              |)

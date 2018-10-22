@@ -46,11 +46,13 @@ def sparktoScalaDataType(dataType: String): String = {
     case "IntegerType" => "Int"
     case "DateType" => "Date"
     case "TimestampType" => "Timestamp"
-    case "BooleanType" => "Boolean"
+    case "BooleanType" => "Int"
     case decimalPattern() => "BigDecimal" //"Double"// dataType.replace("Type", "").toLowerCase
     case _ => "String"
   }
 }
+
+def convertBoolToInt(dtype: String) = if (dtype == "BooleanType") "IntegerType" else dtype
 
 def getScalaType(pk:Set[String], col: String, dtype: String): String = if ((quoteTypes contains dtype) || (pk contains col)) sparktoScalaDataType(dtype) else "Option[" + sparktoScalaDataType(dtype) + "]"
 
@@ -65,10 +67,10 @@ val cols = df.columns.mkString(",")
 val caseStmt = "case class " + table.capitalize + "(\n opType: String\n" + df.dtypes.map{case (col, dtype) => "," + col + ": " + getScalaType(pk, col, dtype)}.mkString("\n") + "\n)"
 
 // Generate PK Statement
-val pkSchema = "\n\t\t\t\t\t\t " + df.dtypes.filter{ case (col, _) => pk contains col}.map{case (col, dtype) => s"""StructField("$col", $dtype)"""}.mkString("\n\t\t\t\t\t\t,")
+val pkSchema = "\n\t\t\t\t\t\t " + df.dtypes.filter{ case (col, _) => pk contains col}.map{case (col, dtype) => s"""StructField("$col", ${convertBoolToInt(dtype)})"""}.mkString("\n\t\t\t\t\t\t,")
 
 // Generate Data Schema
-val tableSchema = "\n\t\t\t\t\t\t " + df.dtypes.map{case (col, dtype) => s"""StructField("$col", $dtype)"""}.mkString("\n\t\t\t\t\t\t,")
+val tableSchema = "\n\t\t\t\t\t\t " + df.dtypes.map{case (col, dtype) => s"""StructField("$col", ${convertBoolToInt(dtype)})"""}.mkString("\n\t\t\t\t\t\t,")
 
 // Generates JSON Schema
 val jSchema = s"""

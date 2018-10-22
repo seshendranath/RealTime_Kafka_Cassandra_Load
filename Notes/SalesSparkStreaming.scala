@@ -89,7 +89,6 @@ val df1 = df.repartition(160)
 df1.persist
 val insert_count = df1.count
 df1.createOrReplaceTempView("df1")
-
 val cols = getColsFromDF(df)
 
 if (drop) {

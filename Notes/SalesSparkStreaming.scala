@@ -72,7 +72,6 @@ tblMap.foreach{ case (k,v) =>
 }
 
 // val db = "adsystemdb";val table = "tbladvertiser";val pk = "id";val dtCol = "last_updated"
-// val db = "adsystemdb";val table = "tblADScurrency_rates";val pk = "activity_date,to_currency,from_currency";val dtCol = "date_modified"
 // val db = "adcentraldb";val table = "tblADCaccounts_salesrep_commissions";val pk = "date,advertiser_id";val dtCol = "date_modified"
 // val db = "adcentraldb";val table = "tblADCadvertiser_rep_revenues";val pk = "activity_date,advertiser_id,relationship";val dtCol = "date_modified"
 // val db = "adcentraldb";val table = "tblADCparent_company_advertisers";val pk = "advertiser_id,parent_company_id";val dtCol = "date_modified"
@@ -80,6 +79,7 @@ tblMap.foreach{ case (k,v) =>
 // val db = "adcentraldb";val table = "tblCRMgeneric_product_credit";val pk = "id";val dtCol = "date_modified"
 // val db = "adcentraldb";val table = "tblADCquota";val pk = "year,month,user_id,quota_type";val dtCol = "date_modified"
 // val db = "adcentraldb";val table = "tblACLusers";val pk = "id";val dtCol = "date_modified"
+// val db = "adsystemdb";val table = "tblADScurrency_rates";val pk = "activity_date,to_currency,from_currency";val dtCol = "date_modified"
 
 val drop = true
 
@@ -122,6 +122,16 @@ val (topic, partition, offset) = if (topic_tmp == null) {
 
 cQuery = s"INSERT INTO metadata.streaming_metadata (job, db, tbl, topic, partition, offset) VALUES('${table.capitalize + "_Load"}', '$db', '$table', '$topic', $partition, $offset)"
 session.execute(cQuery)
+
+cQuery = s"SELECT total_records_processed, inserted_records, updated_records, deleted_records FROM stats.streaming_stats WHERE job = '${table.capitalize + "_Load"}' AND db = '$db' AND tbl = '$table'"
+val statsRes = session.execute(cQuery).all.asScala.toArray.head
+val (total_records_processed, inserted_records, updated_records, deleted_records) = (statsRes.getLong("total_records_processed"), statsRes.getLong("inserted_records"), statsRes.getLong("updated_records"), statsRes.getLong("deleted_records"))
+
+val removePrevCount = inserted_records - (total_records_processed - updated_records - deleted_records)
+
+cQuery = s"UPDATE stats.streaming_stats SET inserted_records = inserted_records - $removePrevCount WHERE job = '${table.capitalize + "_Load"}' AND db = '$db' AND tbl = '$table'"
+session.execute(cQuery)
+
 
 cQuery = s"UPDATE stats.streaming_stats SET inserted_records = inserted_records + $insert_count WHERE job = '${table.capitalize + "_Load"}' AND db = '$db' AND tbl = '$table'"
 session.execute(cQuery)

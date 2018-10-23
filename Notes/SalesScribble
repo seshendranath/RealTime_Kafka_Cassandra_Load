@@ -54,3 +54,16 @@ nohup sh distcp.sh /user/dataeng/mysql/adcentraldb/tblADCquota s3a://indeed-data
 nohup sh distcp.sh /user/dataeng/mysql/adcentraldb/tblACLusers s3a://indeed-data/datalake/v1/prod/mysql/adcentraldb/tblACLusers 1 > tblACLusers.log 2>&1 &
 
 nohup sh distcp.sh /user/dataeng/mysql/adsystemdb/tblADScurrency_rates s3a://indeed-data/datalake/v1/prod/mysql/adsystemdb/tblADScurrency_rates 1 > tblADScurrency_rates.log 2>&1 &
+
+tail -f distcp/tblADCaccounts_salesrep_commissions.log
+tail -f distcp/tblADCadvertiser_rep_revenues.log
+tail -f distcp/tbladvertiser.log
+tail -f distcp/tblADCparent_company.log
+tail -f distcp/tblADCparent_company_advertisers.log
+tail -f distcp/tblCRMgeneric_product_credit.log
+tail -f distcp/tblADCquota.log
+tail -f distcp/tblACLusers.log
+tail -f distcp/tblADScurrency_rates.log
+
+
+

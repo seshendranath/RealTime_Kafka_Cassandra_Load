@@ -6,14 +6,14 @@ nohup sh run.sh TblADCadvertiser_rep_revenues_Load 2 5 1 1 client > TblADCadvert
 nohup sh run.sh TblADCparent_company_advertisers_Load 2 2 1 1 client > TblADCparent_company_advertisers_Load.log 2>&1 &
 nohup sh run.sh TblADCparent_company_Load 2 2 1 1 client > TblADCparent_company_Load.log 2>&1 &
 nohup sh run.sh TblCRMgeneric_product_credit_Load 2 2 1 1 client > TblCRMgeneric_product_credit_Load.log 2>&1 &
-nohup sh run.sh TblADCquota_Load 2 2 1 1 client > TblADCquota_Load.log 2>&1 &
-nohup sh run.sh TblACLusers_Load 2 2 1 1 client > TblACLusers_Load.log 2>&1 &
-nohup sh run.sh TblADScurrency_rates_Load 2 2 1 1 client > TblADScurrency_rates_Load.log 2>&1 &
+nohup sh run.sh TblADCquota_Load 2 1 1 1 client > TblADCquota_Load.log 2>&1 &
+nohup sh run.sh TblACLusers_Load 2 1 1 1 client > TblACLusers_Load.log 2>&1 &
+nohup sh run.sh TblADScurrency_rates_Load 2 1 1 1 client > TblADScurrency_rates_Load.log 2>&1 &
 nohup sh run.sh TblADCsummary_advertiser_Load 2 5 1 1 client > TblADCsummary_advertiser_Load.log 2>&1 &
 
 nohup sh run.sh SalesSummary_Load 2 8 1 3 client > SalesSummary_Load.log 2>&1 &
 
-nohup sh kafka_to_s3.sh Kafka_S3_Load 2 8 3 7 client > Kafka_S3_Load.log 2>&1 &
+nohup sh kafka_to_s3.sh Kafka_S3_Load 2 4 2 2 client > Kafka_S3_Load.log 2>&1 &
 
 nohup python app.py ec2-52-55-85-142.compute-1.amazonaws.com > app.log 2>&1 &
 

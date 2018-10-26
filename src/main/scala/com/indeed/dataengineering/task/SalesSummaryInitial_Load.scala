@@ -8,9 +8,10 @@ package com.indeed.dataengineering.task
 
 import org.apache.spark.sql._
 import com.indeed.dataengineering.AnalyticsTaskApp._
+import com.indeed.dataengineering.utilities.Logging
 
 
-class SalesSummaryInitial_Load {
+class SalesSummaryInitial_Load  extends Logging {
 
   def run(): Unit = {
     import spark.implicits._

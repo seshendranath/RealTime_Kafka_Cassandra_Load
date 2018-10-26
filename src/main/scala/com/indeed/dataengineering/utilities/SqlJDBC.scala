@@ -11,13 +11,12 @@ import com.sun.rowset.CachedRowSetImpl
 import java.sql.DriverManager
 
 
-class PostgreSql(url: String, user: String, password: String) {
+class SqlJDBC(rdb: String, url: String, user: String, password: String) extends Logging {
 
-  val driver = "org.postgresql.Driver"
+  val driverMap = Map("postgresql" -> "org.postgresql.Driver", "redshift" -> "com.amazon.redshift.jdbc.Driver")
+  val driver = driverMap(rdb)
 
   Class.forName(driver)
-
-  val rdb = "postgresql"
 
   /**
     * Executes MySql Server Query
@@ -33,12 +32,13 @@ class PostgreSql(url: String, user: String, password: String) {
     val rowset: CachedRowSet = new CachedRowSetImpl
 
     try {
+      log.info(s"$rdb - Running Query: $query")
       val rs = statement.executeQuery(query)
       rowset.populate(rs)
 
     } catch {
 
-      case e: Exception => e.printStackTrace()
+      case e: Exception => e.printStackTrace(); throw e
 
     } finally {
       conn.close()
@@ -62,10 +62,11 @@ class PostgreSql(url: String, user: String, password: String) {
     var rs: Int = -1
 
     try {
+      log.info(s"$rdb - Running Query: $query")
       rs = statement.executeUpdate(query)
 
     } catch {
-      case e: Exception => e.printStackTrace()
+      case e: Exception => e.printStackTrace(); throw e
 
     } finally {
       conn.close()

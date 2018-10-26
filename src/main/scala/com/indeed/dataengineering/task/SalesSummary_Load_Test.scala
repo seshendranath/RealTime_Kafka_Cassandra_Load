@@ -10,11 +10,12 @@ import com.indeed.dataengineering.AnalyticsTaskApp._
 import org.apache.spark.sql._
 import com.indeed.dataengineering.models._
 import com.datastax.spark.connector.cql.CassandraConnector
+import com.indeed.dataengineering.utilities.Logging
 import com.indeed.dataengineering.utilities.Utils.getMetaQueries
 import org.apache.spark.sql.functions.{log => _, _}
 
 
-class SalesSummary_Load_Test {
+class SalesSummary_Load_Test  extends Logging {
 
   def run(rawData: DataFrame, connector: CassandraConnector, partitions: Set[Int]): Unit = {
 

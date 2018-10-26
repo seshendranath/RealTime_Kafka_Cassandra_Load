@@ -3,9 +3,11 @@ package com.indeed.dataengineering.task
 import org.apache.spark.sql._
 import com.indeed.dataengineering.AnalyticsTaskApp._
 import com.datastax.driver.core._
+import com.indeed.dataengineering.utilities.Logging
+
 import collection.JavaConverters._
 
-class TblADCsummary_advertiser_Initial_Load {
+class TblADCsummary_advertiser_Initial_Load  extends Logging {
 
   def run(): Unit = {
 

@@ -5,25 +5,25 @@ package com.indeed.dataengineering.task
   * Created by aguyyala on 10/19/17.
   */
 
-import scala.collection.mutable
 import com.datastax.spark.connector.cql.CassandraConnector
 import org.apache.spark.sql._
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.functions.{log => _, _}
 import com.indeed.dataengineering.AnalyticsTaskApp._
-import com.indeed.dataengineering.utilities.PostgreSql
+import com.indeed.dataengineering.utilities.{Logging, SqlJDBC}
+import com.indeed.dataengineering.utilities.SparkUtils._
 import com.indeed.dataengineering.utilities.Utils._
 import com.indeed.dataengineering.models._
 import org.apache.spark.sql.streaming.Trigger
 
 
-class Kafka_S3_Load {
+class Kafka_S3_Load extends Logging {
 
   def run(rawData: DataFrame, connector: CassandraConnector, partitions: Set[Int]): Unit = {
     import spark.implicits._
 
     log.info("Creating Postgresql connection")
-    val postgresql = new PostgreSql(conf("metadata.url"), conf("metadata.user"), conf("metadata.password"))
+    val postgresql = new SqlJDBC("postgresql", conf("metadata.url"), conf("metadata.user"), conf("metadata.password"))
 
     val tables = conf("whitelistedTables").split(",").toSet
 
@@ -49,47 +49,6 @@ class Kafka_S3_Load {
     log.info("Await Any Stream Query Termination")
     spark.streams.awaitAnyTermination
 
-  }
-
-  def getDatasetId(postgresql: PostgreSql, tbl: String): Int = {
-    val query = s"select dataset_id from eravana.dataset where name='$tbl'"
-
-    log.info(s"Running Query: $query")
-    val rs = postgresql.executeQuery(query)
-
-    var dataset_id = -1
-    while (rs.next()) dataset_id = rs.getInt("dataset_id")
-
-    log.info(s"Query $query completed successfully")
-    dataset_id
-  }
-
-
-  def getColumns(postgresql: PostgreSql, dataset_id: Int): Array[(String, String)] = {
-    val query = s"select name, data_type from eravana.dataset_column where dataset_id = $dataset_id order by ordinal_position"
-
-    log.info(s"Running Query: $query")
-    val rs = postgresql.executeQuery(query)
-
-    val result = mutable.ArrayBuffer[(String, String)]()
-
-    while (rs.next()) result += ((rs.getString("name"), rs.getString("data_type")))
-
-    log.info(s"Query $query completed successfully")
-    result.toArray
-  }
-
-
-  def buildMetadata(postgreSql: PostgreSql, tables: Set[String]): Map[String, Array[(String, String)]] = {
-    val result = mutable.Map[String, Array[(String, String)]]()
-
-    tables.foreach { tbl =>
-      val dataset_id = getDatasetId(postgreSql, tbl)
-      val columns = getColumns(postgreSql, dataset_id)
-      result += tbl -> columns
-    }
-
-    result.toMap
   }
 
 }

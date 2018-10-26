@@ -6,10 +6,11 @@ package com.indeed.dataengineering.task
 
 
 import com.indeed.dataengineering.AnalyticsTaskApp._
+import com.indeed.dataengineering.utilities.Logging
 import org.apache.spark.sql._
 import com.indeed.dataengineering.utilities.Utils._
 
-class AutoGenerateScalaCode {
+class AutoGenerateScalaCode extends Logging {
 
   def run(): Unit = {
 

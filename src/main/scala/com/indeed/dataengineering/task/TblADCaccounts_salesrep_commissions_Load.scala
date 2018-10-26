@@ -11,11 +11,12 @@ import com.indeed.dataengineering.AnalyticsTaskApp._
 import org.apache.spark.sql._
 import com.indeed.dataengineering.models._
 import com.datastax.spark.connector.cql.CassandraConnector
+import com.indeed.dataengineering.utilities.Logging
 import org.apache.spark.sql.functions.{log => _, _}
 import com.indeed.dataengineering.utilities.Utils._
 
 
-class TblADCaccounts_salesrep_commissions_Load {
+class TblADCaccounts_salesrep_commissions_Load  extends Logging {
 
   def run(rawData: DataFrame, connector: CassandraConnector, partitions: Set[Int]): Unit = {
 

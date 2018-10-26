@@ -9,13 +9,16 @@ package com.indeed.dataengineering.task
 import com.datastax.driver.core.Cluster
 import com.indeed.dataengineering.AnalyticsTaskApp._
 import com.datastax.spark.connector.cql.CassandraConnector
+import com.indeed.dataengineering.utilities.Logging
+
 import collection.JavaConverters._
 import scala.collection.mutable
 import org.apache.spark.sql.DataFrame
+
 import scala.language.reflectiveCalls
 
 
-class Generic {
+class Generic extends Logging {
 
   def run(): Unit = {
 

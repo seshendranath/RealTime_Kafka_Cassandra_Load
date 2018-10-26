@@ -4,9 +4,10 @@ package com.indeed.dataengineering.task
 import com.indeed.dataengineering.AnalyticsTaskApp._
 import org.apache.spark.sql._
 import com.datastax.driver.core._
-import com.indeed.dataengineering.utilities.Utils._
+import com.indeed.dataengineering.utilities.Logging
+import com.indeed.dataengineering.utilities.SparkUtils._
 
-class InitialLoad {
+class InitialLoad extends Logging {
 
   def run(): Unit = {
 

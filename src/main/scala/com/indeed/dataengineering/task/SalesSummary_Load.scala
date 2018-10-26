@@ -13,9 +13,10 @@ import com.indeed.dataengineering.utilities.Utils.getMetaQueries
 import org.apache.spark.sql._
 import org.apache.spark.sql.functions.{log => _, _}
 import com.github.nscala_time.time.Imports._
+import com.indeed.dataengineering.utilities.Logging
 
 
-class SalesSummary_Load {
+class SalesSummary_Load  extends Logging {
 
   def run(rawData: DataFrame, connector: CassandraConnector, partitions: Set[Int]): Unit = {
 

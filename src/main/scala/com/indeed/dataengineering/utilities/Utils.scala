@@ -4,13 +4,13 @@ package com.indeed.dataengineering.utilities
   * Created by aguyyala on 2/16/17.
   */
 
+
 import com.github.nscala_time.time.Imports.DateTime
-
+import com.indeed.dataengineering.GenericDaemon.conf
 import scala.collection.mutable
-import org.apache.spark.sql._
-import org.apache.spark.sql.types._
 
-object Utils {
+
+object Utils extends  Logging {
 
   val quoteTypes = Set("StringType", "DateType", "TimestampType")
 
@@ -55,18 +55,6 @@ object Utils {
   }
 
 
-  def getColsFromDF(df: DataFrame, exclude: Seq[String] = Seq()): Array[(String, String)] = {
-    val cols = mutable.ArrayBuffer[(String, String)]()
-    for (column <- df.dtypes) {
-      val (col, dataType) = column
-      if (!(exclude contains col)) {
-        cols += ((col, sparkToCassandraDataType(dataType)))
-      }
-    }
-    cols.toArray
-  }
-
-
   def getSetClause(opType: String): String = {
     if (opType.startsWith("i")) s"${opType}ed_records = ${opType}ed_records + 1" else s"${opType}d_records = ${opType}d_records + 1"
   }
@@ -103,24 +91,104 @@ object Utils {
   }
 
 
-  def postgresqlToSparkDataType(dataType: String): DataType = {
+  def getDatasetId(postgresql: SqlJDBC, tbl: String): Int = {
+    val query = s"SELECT dataset_id FROM eravana.dataset WHERE name='$tbl'"
+
+    log.info(s"Fetching DataSet Id for table $tbl")
+    val rs = postgresql.executeQuery(query)
+
+    var dataset_id = -1
+    while (rs.next()) dataset_id = rs.getInt("dataset_id")
+
+    dataset_id
+  }
+
+
+  def getColumns(postgresql: SqlJDBC, dataset_id: Int): Array[(String, String)] = {
+    val query =
+      s"""
+         |SELECT
+         |     name
+         |    ,CASE WHEN data_type = 'VARCHAR' THEN data_type || '(' || max_length + 10 || ')' ELSE data_type END AS data_type
+         |FROM eravana.dataset_column
+         |WHERE dataset_id = $dataset_id
+         |ORDER BY ordinal_position
+       """.stripMargin
+
+    log.info(s"Fetching columns for DataSet Id $dataset_id")
+    val rs = postgresql.executeQuery(query)
+
+    val result = mutable.ArrayBuffer[(String, String)]()
+
+    while (rs.next()) result += ((rs.getString("name"), rs.getString("data_type")))
+
+    result.toArray
+  }
+
+
+  def buildMetadata(postgreSql: SqlJDBC, tables: Set[String]): Map[String, Array[(String, String)]] = {
+    log.info("Building Metadata")
+    val result = mutable.Map[String, Array[(String, String)]]()
+
+    tables.foreach { tbl =>
+      val dataset_id = getDatasetId(postgreSql, tbl)
+      val columns = getColumns(postgreSql, dataset_id)
+      result += tbl -> columns
+    }
+
+    result.toMap
+  }
+
+
+  def timeit(s: Long, msg: String): Unit = {
+    val e = System.nanoTime()
+    val totalTime = (e - s) / (1e9 * 60)
+    log.info(msg + " " + f"$totalTime%2.2f" + " mins")
+  }
+
+
+  def postgresqlToRedshiftDataType(dataType: String): String = {
+
+    val varcharPattern = """VARCHAR\(\d+\)""".r
 
     dataType match {
-      case "DATETIME" => TimestampType
-      case "TIME" => StringType
-      case "DATE" => DateType
-      case "SMALLINT" => IntegerType
-      case "TIMESTAMP" => TimestampType
-      case "FLOAT" => DoubleType
-      case "INTEGER" => IntegerType
-      case "VARCHAR" => StringType
-      case "NUMERIC" => DoubleType
-      case "BIGINT" => LongType
-      case "UUID" => StringType
-      case "BOOLEAN" => IntegerType
-      case "DOUBLE" => DoubleType
-      case "YEAR" => IntegerType
-      case _ => StringType
+      case "DATETIME" => "TIMESTAMP WITHOUT TIME ZONE"
+      case "TIME" => "VARCHAR(50)"
+      case "DATE" => "DATE"
+      case "SMALLINT" => "INTEGER"
+      case "TIMESTAMP" => "TIMESTAMP WITHOUT TIME ZONE"
+      case "FLOAT" => "DOUBLE PRECISION"
+      case "INTEGER" => "INTEGER"
+      case varcharPattern() => dataType
+      case "NUMERIC" => "DOUBLE PRECISION"
+      case "BIGINT" => "BIGINT"
+      case "UUID" => "VARCHAR(50)"
+      case "BOOLEAN" => "BOOLEAN"
+      case "DOUBLE" => "DOUBLE PRECISION"
+      case "YEAR" => "INTEGER"
+      case _ => "VARCHAR(1000)"
     }
   }
+
+
+  def runCopyCmd(redshift: SqlJDBC, tbl: String, manifestFileName: String): Int = {
+    val copyCmd = s"COPY ${conf("redshift.schema")}.${tbl.toLowerCase} FROM 's3://${conf("s3Bucket")}/$manifestFileName' IAM_ROLE '${conf("iamRole")}' MANIFEST FORMAT AS PARQUET"
+    val s = System.nanoTime()
+    val res = redshift.executeUpdate(copyCmd)
+    timeit(s, s"Time took to complete Copy for $tbl")
+    res
+  }
+
+
+  def endJobWithSuccessStatus(jobName: String, jc: JobControl, tbl: String, instanceId: String, startTimestamp: String, endTimestamp: String): Int = {
+    log.info(s"End Job $jobName for object $tbl with Success Status")
+    jc.endJob(instanceId, 1, startTimestamp, endTimestamp)
+  }
+
+
+  def endJobWithFailedStatus(jobName: String, jc: JobControl, tbl: String, instanceId: String): Int = {
+    log.error(s"End Job $jobName for object $tbl with Failed Status")
+    jc.endJob(instanceId, -1)
+  }
+
 }

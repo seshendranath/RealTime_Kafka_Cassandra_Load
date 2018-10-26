@@ -29,6 +29,8 @@ class MergeS3ToRedshift extends Logging {
 
   val timeFormat = "yyyy-MM-dd HH:mm:ss"
 
+  val runInterval: Int = conf.getOrElse("runInterval", "5").toInt
+
   def run(): Unit = {
 
     log.info(s"Job Name: $jobName")
@@ -44,8 +46,8 @@ class MergeS3ToRedshift extends Logging {
       Await.result(go(executionContext, whitelistedTables), scala.concurrent.duration.Duration.Inf)
 
       //      whitelistedTables.foreach(tbl => process(tbl))
-
-      Thread.sleep(conf.getOrElse("runInterval", "5").toInt * 60 * 1000)
+      log.info(s"Sleeping for $runInterval minutes...")
+      Thread.sleep(runInterval * 60 * 1000)
     }
 
     executorService.shutdown()

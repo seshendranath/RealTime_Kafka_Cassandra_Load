@@ -45,7 +45,7 @@ class MergeS3ToRedshift extends Logging {
 
       //      whitelistedTables.foreach(tbl => process(tbl))
 
-      Thread.sleep(10000)
+      Thread.sleep(conf.getOrElse("runInterval", "5").toInt * 60 * 1000)
     }
 
     executorService.shutdown()

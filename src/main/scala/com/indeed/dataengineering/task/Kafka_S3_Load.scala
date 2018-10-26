@@ -42,7 +42,7 @@ class Kafka_S3_Load extends Logging {
       val df = rawData.select($"topic", $"partition", $"offset", from_json($"value", MessageSchema.jsonSchema).as("value")).filter($"value.table" === tbl).select($"topic", $"partition", $"offset", $"value.type".as("opType"), from_json($"value.data", js).as("data")).select($"topic", $"partition", $"offset", $"opType", $"data.*").selectExpr(boolString: _*).where("opType IN ('insert', 'update', 'delete')")
 
       log.info(s"Starting Stream for table $tbl")
-      val dfQuery = df.withColumn("dt", current_date).withColumn("hr", hour(current_timestamp)).writeStream.format(conf("targetFormat")).option("checkpointLocation", conf("baseLoc") + s"/checkpoint/$tbl/").option("path", conf("baseLoc") + s"/$tbl").trigger(Trigger.ProcessingTime(s"${conf("runInterval")} minutes")).partitionBy("dt", "hr").start()
+      val dfQuery = df.withColumn("dt", current_date).withColumn("hr", hour(current_timestamp)).writeStream.format(conf("targetFormat")).option("checkpointLocation", conf("baseLoc") + s"/checkpoint/$tbl/").option("path", conf("baseLoc") + s"/$tbl").trigger(Trigger.ProcessingTime(s"${conf.getOrElse("runInterval", "5")} minutes")).partitionBy("dt", "hr").start()
       log.info(s"Query id for $tbl: ${dfQuery.id}")
     }
 

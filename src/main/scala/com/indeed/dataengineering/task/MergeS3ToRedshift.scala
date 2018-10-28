@@ -7,13 +7,11 @@ package com.indeed.dataengineering.task
 
 
 import java.util.concurrent.Executors
-
 import com.github.nscala_time.time.Imports.DateTime
 import com.indeed.dataengineering.GenericDaemon.{conf, s3}
 import com.indeed.dataengineering.utilities.{JobControl, Logging, SqlJDBC}
 import com.indeed.dataengineering.utilities.S3Utils._
 import com.indeed.dataengineering.utilities.Utils._
-
 import scala.concurrent.{Await, ExecutionContext, Future}
 
 
@@ -41,21 +39,25 @@ class MergeS3ToRedshift extends Logging {
     val executionContext = ExecutionContext.fromExecutorService(executorService)
 
     // TODO: Handle SIGTERM/SIGINT to exit gracefully
-    while (true) {
+    try {
+      while (true) {
 
-      try {
-        Await.result(go(executionContext, whitelistedTables), scala.concurrent.duration.Duration.Inf)
+        val res = go(executionContext, whitelistedTables)
+
+        res.recover{ case e => throw e }(executionContext)
+
+        Await.result(res, scala.concurrent.duration.Duration.Inf)
         //      whitelistedTables.foreach(tbl => process(tbl))
-      } catch {
-        case e: Exception => throw e
-      } finally {
-        log.info("Shutting Down Executor Service and Execution Context")
-        executorService.shutdown()
-        executionContext.shutdown()
-      }
 
-      log.info(s"Sleeping for $runInterval minutes...")
-      Thread.sleep(runInterval * 60 * 1000)
+        log.info(s"Sleeping for $runInterval minutes...")
+        Thread.sleep(runInterval * 60 * 1000)
+      }
+    } catch {
+      case e: Exception => throw e
+    } finally {
+      log.info("Shutting Down Executor Service and Execution Context")
+      executorService.shutdown()
+      executionContext.shutdown()
     }
 
   }

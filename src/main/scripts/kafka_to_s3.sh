@@ -22,7 +22,7 @@ spark-submit \
 --conf "spark.sql.shuffle.partitions=1" \
 --conf "spark.dynamicAllocation.enabled=true" \
 --conf "spark.eventLog.enabled=false" \
---conf "spark.streaming.receiver.writeAheadLog.enable=false" \
+--conf "spark.streaming.receiver.writeAheadLog.enable=true" \
 --conf "spark.streaming.unpersist=true" \
 --conf "spark.streaming.ui.retainedBatches=10" \
 --conf "spark.ui.retainedJobs=10" \

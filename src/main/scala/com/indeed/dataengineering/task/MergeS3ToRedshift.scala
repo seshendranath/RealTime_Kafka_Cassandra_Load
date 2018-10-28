@@ -43,15 +43,20 @@ class MergeS3ToRedshift extends Logging {
     // TODO: Handle SIGTERM/SIGINT to exit gracefully
     while (true) {
 
-      Await.result(go(executionContext, whitelistedTables), scala.concurrent.duration.Duration.Inf)
+      try {
+        Await.result(go(executionContext, whitelistedTables), scala.concurrent.duration.Duration.Inf)
+        //      whitelistedTables.foreach(tbl => process(tbl))
+      } catch {
+        case e: Exception => throw e
+      } finally {
+        log.info("Shutting Down Executor Service and Execution Context")
+        executorService.shutdown()
+        executionContext.shutdown()
+      }
 
-      //      whitelistedTables.foreach(tbl => process(tbl))
       log.info(s"Sleeping for $runInterval minutes...")
       Thread.sleep(runInterval * 60 * 1000)
     }
-
-    executorService.shutdown()
-    executionContext.shutdown()
 
   }
 

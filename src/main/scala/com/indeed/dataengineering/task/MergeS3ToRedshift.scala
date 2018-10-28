@@ -7,12 +7,15 @@ package com.indeed.dataengineering.task
 
 
 import java.util.concurrent.Executors
+
 import com.github.nscala_time.time.Imports.DateTime
 import com.indeed.dataengineering.GenericDaemon.{conf, s3}
 import com.indeed.dataengineering.utilities.{JobControl, Logging, SqlJDBC}
 import com.indeed.dataengineering.utilities.S3Utils._
 import com.indeed.dataengineering.utilities.Utils._
+
 import scala.concurrent.{Await, ExecutionContext, Future}
+import scala.util.{Failure, Success}
 
 
 class MergeS3ToRedshift extends Logging {
@@ -44,9 +47,10 @@ class MergeS3ToRedshift extends Logging {
 
         val res = go(executionContext, whitelistedTables)
 
-        res.recover{ case e => throw e }(executionContext)
-
-        Await.result(res, scala.concurrent.duration.Duration.Inf)
+        Await.result(waitAll(executionContext, res), scala.concurrent.duration.Duration.Inf).foreach {
+          case Success(_) =>
+          case Failure(e) => throw e
+        }
         //      whitelistedTables.foreach(tbl => process(tbl))
 
         log.info(s"Sleeping for $runInterval minutes...")
@@ -115,12 +119,13 @@ class MergeS3ToRedshift extends Logging {
   def getManifestFileName(tbl: String, endTimestamp: String, instanceId: String): String = conf("manifestLoc") + s"/$tbl/${tbl}_${endTimestamp.replaceAll("[-, ,:]", "_")}_$instanceId.manifest"
 
 
-  def go(implicit ec: ExecutionContext, whitelistedTables: Array[String]): Future[Seq[Unit]] = {
+  def go(implicit ec: ExecutionContext, whitelistedTables: Array[String]): Seq[Future[Unit]] = {
     val F: Seq[Future[Unit]] = for (tbl <- whitelistedTables) yield {
       Future {
         process(tbl)
       }
     }
-    Future.sequence(F)
+    F
   }
+
 }

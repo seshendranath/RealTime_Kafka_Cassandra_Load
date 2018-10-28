@@ -7,7 +7,10 @@ package com.indeed.dataengineering.utilities
 
 import com.github.nscala_time.time.Imports.DateTime
 import com.indeed.dataengineering.GenericDaemon.conf
+
 import scala.collection.mutable
+import scala.concurrent.{ExecutionContext, Future}
+import scala.util.{Failure, Success, Try}
 
 
 object Utils extends  Logging {
@@ -109,7 +112,7 @@ object Utils extends  Logging {
       s"""
          |SELECT
          |     name
-         |    ,CASE WHEN data_type = 'VARCHAR' THEN data_type || '(' || max_length + 10 || ')' ELSE data_type END AS data_type
+         |    ,CASE WHEN data_type = 'VARCHAR' THEN data_type || '(' || max_length + 100 || ')' ELSE data_type END AS data_type
          |FROM eravana.dataset_column
          |WHERE dataset_id = $dataset_id
          |ORDER BY ordinal_position
@@ -190,5 +193,11 @@ object Utils extends  Logging {
     log.error(s"End Job $jobName for object $tbl with Failed Status")
     jc.endJob(instanceId, -1)
   }
+
+
+  def lift[T](implicit ec: ExecutionContext, futures: Seq[Future[T]]): Seq[Future[Try[T]]] = futures.map(_.map { Success(_) }.recover { case t => Failure(t) })
+
+
+  def waitAll[T](implicit ec: ExecutionContext, futures: Seq[Future[T]]): Future[Seq[Try[T]]] = Future.sequence(lift(ec, futures))
 
 }

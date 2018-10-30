@@ -282,15 +282,9 @@ object Utils extends Logging {
   }
 
 
-  def endJobWithSuccessStatus(jobName: String, jc: JobControl, tbl: String, instanceId: String, startTimestamp: String, endTimestamp: String): Int = {
-    log.info(s"End Job $jobName for object $tbl with Success Status")
-    jc.endJob(instanceId, 1, startTimestamp, endTimestamp)
-  }
-
-
-  def endJobWithFailedStatus(jobName: String, jc: JobControl, tbl: String, instanceId: String): Int = {
-    log.error(s"End Job $jobName for object $tbl with Failed Status")
-    jc.endJob(instanceId, -1)
+  def endJob(jc: JobControl, jobName: String, processName: String, statusFlag: Int, tbl: String, instanceId: String, startTimestamp: String = "1900-01-01", endTimestamp: String = "1900-01-01"): Int = {
+    log.info(s"End Job $jobName, $processName process for object $tbl with ${if (statusFlag == 1) "Success" else "Failed"} Status")
+    jc.endJob(instanceId, statusFlag, startTimestamp, endTimestamp)
   }
 
 

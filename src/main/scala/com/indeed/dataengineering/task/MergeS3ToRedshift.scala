@@ -78,49 +78,12 @@ class MergeS3ToRedshift extends Logging {
 
 
   def process(tbl: String): Unit = {
-    val jobId = jc.getJobId(jobName, conf(s"$jobName.processName"), tbl)
-    log.info(s"Job Id for job $jobName and object $tbl: $jobId")
-
-    log.info(s"Start Job for $jobName and object $tbl")
-    val (instanceId, lastSuccessfulRunDetails) = jc.startJob(jobId)
-    log.info(s"Last Successful Run Details for job $jobName and object $tbl: $lastSuccessfulRunDetails")
-
-    val defaultStartTimestamp = DateTime.now.minusDays(1).toString(timeFormat)
-    val startTimestamp = lastSuccessfulRunDetails.getOrElse("last_successful_etl_end_time", defaultStartTimestamp)
-    val endTimestamp = DateTime.now.toString(timeFormat)
-
-    log.info(s"Start and End Timestamps for $jobName and $tbl: $startTimestamp and $endTimestamp")
     try {
-
-      val sourcePath = conf("baseLoc") + s"/$tbl"
-
-      val ftp = getS3Paths(sourcePath, timeFormat, startTimestamp, endTimestamp)
-
-      if (ftp.isEmpty) {
-        log.info(s"No files to copy...")
-        endJobWithSuccessStatus(jobName, jc, tbl, instanceId, startTimestamp, endTimestamp)
-        return
-      }
-
-      val manifestFileContents = getManifestFileContents(ftp)
-
-      val manifestFileName = getManifestFileName(tbl, endTimestamp, instanceId)
-
-      log.info(s"Uploading manifest file $manifestFileName to s3")
-      uploadToS3(s3, s3Bucket, manifestFileName, manifestFileContents)
-
-      // TODO: Separate out copy and merge process so if one fails it doesn't affect the timestamps of another
-      runCopyCmd(redshift, tbl, manifestFileName)
-
-      merge(redshift, tbl)
-
+      copy(tbl)
+      merge(tbl)
     } catch {
-      case e: Exception =>
-        endJobWithFailedStatus(jobName, jc, tbl, instanceId)
-        throw e
+      case e: Exception => throw e
     }
-
-    endJobWithSuccessStatus(jobName, jc, tbl, instanceId, startTimestamp, endTimestamp)
   }
 
 
@@ -140,36 +103,92 @@ class MergeS3ToRedshift extends Logging {
   }
 
 
-  def merge(redshift: SqlJDBC, tbl: String): Int = {
-    val stageSchema = conf("redshift.schema")
-    val finalSchema = conf("redshift.final.schema")
+  def copy(tbl: String): Unit = {
+    val processName = "copy"
 
-    val createTempTblQuery = generateCreateTempTblQuery(metadata, stageSchema, tbl)
-    //    redshift.executeUpdate(createTempTblQuery)
+    val jobId = jc.getJobId(jobName, processName, tbl)
+    log.info(s"Job Id for job $jobName, $processName process and object $tbl: $jobId")
 
-    val deleteQuery = generateDeleteQuery(metadata, finalSchema, tbl)
-    //    redshift.executeUpdate(deleteQuery)
+    log.info(s"Start $processName process for $jobName and object $tbl")
+    val (instanceId, lastSuccessfulRunDetails) = jc.startJob(jobId)
+    log.info(s"Last Successful Run Details for $processName process of $jobName and object $tbl: $lastSuccessfulRunDetails")
 
-    val insertQuery = generateInsertQuery(metadata, finalSchema, tbl)
-    //    redshift.executeUpdate(insertQuery)
+    val defaultStartTimestamp = DateTime.now.minusDays(1).toString(timeFormat)
+    val startTimestamp = lastSuccessfulRunDetails.getOrElse("last_successful_etl_end_time", defaultStartTimestamp)
+    val endTimestamp = DateTime.now.toString(timeFormat)
 
-    val truncateQuery = generateTruncateQuery(stageSchema, tbl)
-    //    redshift.executeUpdate(insertQuery)
+    try {
+      log.info(s"Start and End Timestamps for $processName process of $jobName and $tbl: $startTimestamp and $endTimestamp")
 
-    val transaction =
-      s"""
-         |BEGIN TRANSACTION;
-         |$createTempTblQuery;
-         |$deleteQuery;
-         |$insertQuery;
-         |$truncateQuery;
-         |END TRANSACTION;
+      val sourcePath = conf("baseLoc") + s"/$tbl"
+
+      val ftp = getS3Paths(sourcePath, timeFormat, startTimestamp, endTimestamp)
+
+      if (ftp.isEmpty) {
+        log.info(s"No files to copy...")
+        endJob(jc, jobName, processName, 1, tbl, instanceId, startTimestamp, endTimestamp)
+        return
+      }
+
+      val manifestFileContents = getManifestFileContents(ftp)
+
+      val manifestFileName = getManifestFileName(tbl, endTimestamp, instanceId)
+
+      log.info(s"Uploading manifest file $manifestFileName to s3")
+      uploadToS3(s3, s3Bucket, manifestFileName, manifestFileContents)
+
+      runCopyCmd(redshift, tbl, manifestFileName)
+    } catch {
+      case e: Exception =>
+        endJob(jc, jobName, processName, -1, tbl, instanceId)
+        throw e
+    }
+
+    endJob(jc, jobName, processName, 1, tbl, instanceId, startTimestamp, endTimestamp)
+  }
+
+
+  def merge(tbl: String): Unit = {
+    val processName = "merge"
+
+    val jobId = jc.getJobId(jobName, processName, tbl)
+    log.info(s"Job Id for job $jobName, $processName process and object $tbl: $jobId")
+
+    log.info(s"Start $processName process for $jobName and object $tbl")
+    val (instanceId, _) = jc.startJob(jobId)
+
+    try {
+      val stageSchema = conf("redshift.schema")
+      val finalSchema = conf("redshift.final.schema")
+
+      val createTempTblQuery = generateCreateTempTblQuery(metadata, stageSchema, tbl)
+
+      val deleteQuery = generateDeleteQuery(metadata, finalSchema, tbl)
+
+      val insertQuery = generateInsertQuery(metadata, finalSchema, tbl)
+
+      val truncateQuery = generateTruncateQuery(stageSchema, tbl)
+
+      val transaction =
+        s"""
+           |BEGIN TRANSACTION;
+           |$createTempTblQuery;
+           |$deleteQuery;
+           |$insertQuery;
+           |$truncateQuery;
+           |END TRANSACTION;
        """.stripMargin
 
-    val s = System.nanoTime()
-    val res = redshift.executeUpdate(transaction)
-    timeit(s, s"Time took to complete Merge for $tbl")
-    res
+      val s = System.nanoTime()
+      redshift.executeUpdate(transaction)
+      timeit(s, s"Time took to complete Merge for $tbl")
+    } catch {
+      case e: Exception =>
+        endJob(jc, jobName, processName, -1, tbl, instanceId)
+        throw e
+    }
+
+    endJob(jc, jobName, processName, 1, tbl, instanceId)
   }
 
 }

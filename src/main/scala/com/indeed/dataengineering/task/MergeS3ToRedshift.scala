@@ -10,6 +10,7 @@ import java.util.concurrent.Executors
 
 import com.github.nscala_time.time.Imports.DateTime
 import com.indeed.dataengineering.GenericDaemon.{conf, s3}
+import com.indeed.dataengineering.models.EravanaMetadata
 import com.indeed.dataengineering.utilities.{JobControl, Logging, SqlJDBC}
 import com.indeed.dataengineering.utilities.S3Utils._
 import com.indeed.dataengineering.utilities.Utils._
@@ -24,6 +25,10 @@ class MergeS3ToRedshift extends Logging {
 
   val s3Bucket = conf("s3Bucket")
 
+  log.info("Creating Postgresql connection")
+  val postgresql = new SqlJDBC("postgresql", conf("metadata.url"), conf("metadata.user"), conf("metadata.password"))
+
+  log.info("Creating Redshift connection")
   val redshift = new SqlJDBC("redshift", conf("redshift.url"), conf("redshift.user"), conf("redshift.password"))
 
   val jc = new JobControl
@@ -31,6 +36,8 @@ class MergeS3ToRedshift extends Logging {
   val timeFormat = "yyyy-MM-dd HH:mm:ss"
 
   val runInterval: Int = conf.getOrElse("runInterval", "5").toInt
+
+  val metadata: Map[String, EravanaMetadata] = buildMetadata(postgresql, conf("whitelistedTables").split(",").toSet)
 
   def run(): Unit = {
 
@@ -45,13 +52,16 @@ class MergeS3ToRedshift extends Logging {
     try {
       while (true) {
 
-        val res = go(executionContext, whitelistedTables)
+        if (conf.getOrElse("runSequentially", "false").toBoolean) {
+          whitelistedTables.foreach(tbl => process(tbl))
+        } else {
+          val res = go(executionContext, whitelistedTables)
 
-        Await.result(waitAll(executionContext, res), scala.concurrent.duration.Duration.Inf).foreach {
-          case Success(_) =>
-          case Failure(e) => throw e
+          Await.result(waitAll(executionContext, res), scala.concurrent.duration.Duration.Inf).foreach {
+            case Success(_) =>
+            case Failure(e) => throw e
+          }
         }
-        //      whitelistedTables.foreach(tbl => process(tbl))
 
         log.info(s"Sleeping for $runInterval minutes...")
         Thread.sleep(runInterval * 60 * 1000)
@@ -99,9 +109,10 @@ class MergeS3ToRedshift extends Logging {
       log.info(s"Uploading manifest file $manifestFileName to s3")
       uploadToS3(s3, s3Bucket, manifestFileName, manifestFileContents)
 
+      // TODO: Separate out copy and merge process so if one fails it doesn't affect the timestamps of another
       runCopyCmd(redshift, tbl, manifestFileName)
 
-      // TODO: Implement Merge Process
+      merge(redshift, tbl)
 
     } catch {
       case e: Exception =>
@@ -126,6 +137,39 @@ class MergeS3ToRedshift extends Logging {
       }
     }
     F
+  }
+
+
+  def merge(redshift: SqlJDBC, tbl: String): Int = {
+    val stageSchema = conf("redshift.schema")
+    val finalSchema = conf("redshift.final.schema")
+
+    val createTempTblQuery = generateCreateTempTblQuery(metadata, stageSchema, tbl)
+    //    redshift.executeUpdate(createTempTblQuery)
+
+    val deleteQuery = generateDeleteQuery(metadata, finalSchema, tbl)
+    //    redshift.executeUpdate(deleteQuery)
+
+    val insertQuery = generateInsertQuery(metadata, finalSchema, tbl)
+    //    redshift.executeUpdate(insertQuery)
+
+    val truncateQuery = generateTruncateQuery(stageSchema, tbl)
+    //    redshift.executeUpdate(insertQuery)
+
+    val transaction =
+      s"""
+         |BEGIN TRANSACTION;
+         |$createTempTblQuery;
+         |$deleteQuery;
+         |$insertQuery;
+         |$truncateQuery;
+         |END TRANSACTION;
+       """.stripMargin
+
+    val s = System.nanoTime()
+    val res = redshift.executeUpdate(transaction)
+    timeit(s, s"Time took to complete Merge for $tbl")
+    res
   }
 
 }

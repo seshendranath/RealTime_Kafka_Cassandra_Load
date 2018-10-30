@@ -7,13 +7,16 @@ package com.indeed.dataengineering.utilities
 
 import com.github.nscala_time.time.Imports.DateTime
 import com.indeed.dataengineering.GenericDaemon.conf
+import com.indeed.dataengineering.models.{Column, EravanaMetadata}
 
 import scala.collection.mutable
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success, Try}
 
 
-object Utils extends  Logging {
+object Utils extends Logging {
+
+  val redshiftKeywords = Set("partition", "offset", "type", "year", "month")
 
   val quoteTypes = Set("StringType", "DateType", "TimestampType")
 
@@ -107,7 +110,7 @@ object Utils extends  Logging {
   }
 
 
-  def getColumns(postgresql: SqlJDBC, dataset_id: Int): Array[(String, String)] = {
+  def getColumns(postgresql: SqlJDBC, dataset_id: Int): Array[Column] = {
     val query =
       s"""
          |SELECT
@@ -121,25 +124,121 @@ object Utils extends  Logging {
     log.info(s"Fetching columns for DataSet Id $dataset_id")
     val rs = postgresql.executeQuery(query)
 
-    val result = mutable.ArrayBuffer[(String, String)]()
+    val result = mutable.ArrayBuffer[Column]()
 
-    while (rs.next()) result += ((rs.getString("name"), rs.getString("data_type")))
+    while (rs.next()) result += Column(rs.getString("name"), rs.getString("data_type"))
 
     result.toArray
   }
 
 
-  def buildMetadata(postgreSql: SqlJDBC, tables: Set[String]): Map[String, Array[(String, String)]] = {
+  def getPrimaryKey(postgresql: SqlJDBC, dataset_id: Int): Array[String] = {
+    val query =
+      s"""
+         |SELECT name FROM
+         |(SELECT * FROM eravana.dataset_primary_key WHERE dataset_id = $dataset_id) a
+         |JOIN eravana.dataset_column b ON a.dataset_id = b.dataset_id AND a.dataset_column_id = b.dataset_column_id
+         |ORDER BY a.ordinal_position
+       """.stripMargin
+
+    log.info(s"Fetching primary key for DataSet Id $dataset_id")
+    val rs = postgresql.executeQuery(query)
+
+    val result = mutable.ArrayBuffer[String]()
+
+    while (rs.next()) result += rs.getString("name")
+
+    result.toArray
+  }
+
+
+  def buildMetadata(postgresql: SqlJDBC, tables: Set[String]): Map[String, EravanaMetadata] = {
     log.info("Building Metadata")
-    val result = mutable.Map[String, Array[(String, String)]]()
+    val result = mutable.Map[String, EravanaMetadata]()
 
     tables.foreach { tbl =>
-      val dataset_id = getDatasetId(postgreSql, tbl)
-      val columns = getColumns(postgreSql, dataset_id)
-      result += tbl -> columns
+      val dataset_id = getDatasetId(postgresql, tbl)
+      val columns = getColumns(postgresql, dataset_id)
+      val primaryKey = getPrimaryKey(postgresql, dataset_id)
+      result += tbl -> EravanaMetadata(columns, primaryKey)
     }
 
     result.toMap
+  }
+
+
+  def escapeColName(c: String): String = if (redshiftKeywords contains c) s""""$c"""" else c
+
+
+  def generateRowHashColStr(metadata: Map[String, EravanaMetadata], tbl: String): String = {
+    val colStr = metadata(tbl).columns.map(c => if (c.dataType == "BOOLEAN") s"COALESCE(CAST(CAST(${escapeColName(c.name)} AS INTEGER) AS VARCHAR), '')" else s"COALESCE(CAST(${escapeColName(c.name)} AS VARCHAR), '')").mkString(" + ")
+
+    s"MD5($colStr)"
+  }
+
+
+  def generateRankColStr(metadata: Map[String, EravanaMetadata], tbl: String): String = {
+    val pk = metadata(tbl).primaryKey.map(c => escapeColName(c)).mkString(",")
+
+    s"ROW_NUMBER() OVER (PARTITION BY $pk ORDER BY binlog_timestamp DESC)"
+  }
+
+
+  def generateColStr(metadata: Map[String, EravanaMetadata], tbl: String): String = {
+    metadata(tbl).columns.map(c => escapeColName(c.name)).mkString(",")
+  }
+
+
+  def generateDeDupSelectQuery(metadata: Map[String, EravanaMetadata], stageSchema: String, tbl: String): String = {
+    val colStr = generateColStr(metadata, tbl)
+    val rankColStr = generateRankColStr(metadata, tbl)
+
+    s"""
+       |SELECT
+       |      $colStr, op_type, binlog_timestamp
+       |FROM (SELECT
+       |           $colStr, op_type, binlog_timestamp, $rankColStr AS rank
+       |      FROM $stageSchema.$tbl
+       |      ) a
+       |WHERE rank  = 1
+     """.stripMargin
+  }
+
+
+  def generateCreateTempTblQuery(metadata: Map[String, EravanaMetadata], stageSchema: String, tbl: String): String = {
+    val deDupSelectQuery = generateDeDupSelectQuery(metadata, stageSchema, tbl)
+
+    s"CREATE TEMP TABLE $tbl AS $deDupSelectQuery"
+  }
+
+
+  def generateDeleteQuery(metadata: Map[String, EravanaMetadata], finalSchema: String, tbl: String): String = {
+    val pkStr = metadata(tbl).primaryKey.map(c => escapeColName(c)).map(c => s"""stg.$c = $finalSchema.$tbl.$c""").mkString(" AND ")
+
+    s"DELETE FROM $finalSchema.$tbl USING $tbl stg WHERE $pkStr"
+  }
+
+
+  def generateInsertQuery(metadata: Map[String, EravanaMetadata], finalSchema: String, tbl: String): String = {
+    val colStr = generateColStr(metadata, tbl)
+    val rowHashStr = generateRowHashColStr(metadata, tbl)
+
+    s"""
+       |INSERT INTO $finalSchema.$tbl ($colStr, row_hash, is_deleted, etl_deleted_timestamp, etl_inserted_timestamp, etl_updated_timestamp)
+       |SELECT
+       |      $colStr
+       |     ,$rowHashStr AS row_hash
+       |     ,CASE WHEN op_type = 'delete' THEN true ELSE false END AS is_deleted
+       |     ,CASE WHEN op_type = 'delete' THEN binlog_timestamp ELSE NULL END AS etl_deleted_timestamp
+       |     ,getdate() AS etl_inserted_timestamp
+       |     ,getdate() AS etl_updated_timestamp
+       |FROM $tbl
+     """.stripMargin
+  }
+
+
+  def generateTruncateQuery(stageSchema: String, tbl: String): String = {
+    s"TRUNCATE TABLE $stageSchema.$tbl"
   }
 
 
@@ -195,7 +294,9 @@ object Utils extends  Logging {
   }
 
 
-  def lift[T](implicit ec: ExecutionContext, futures: Seq[Future[T]]): Seq[Future[Try[T]]] = futures.map(_.map { Success(_) }.recover { case t => Failure(t) })
+  def lift[T](implicit ec: ExecutionContext, futures: Seq[Future[T]]): Seq[Future[Try[T]]] = futures.map(_.map {
+    Success(_)
+  }.recover { case t => Failure(t) })
 
 
   def waitAll[T](implicit ec: ExecutionContext, futures: Seq[Future[T]]): Future[Seq[Try[T]]] = Future.sequence(lift(ec, futures))

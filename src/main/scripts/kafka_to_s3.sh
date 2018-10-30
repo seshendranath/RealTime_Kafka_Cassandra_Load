@@ -17,12 +17,15 @@ spark-submit \
 --executor-cores=${ec} \
 --executor-memory=${em}g \
 --files ~/log4j-spark.properties \
---conf "mapreduce.fileoutputcommitter.algorithm.version=2" \
---conf "fs.s3a.fast.upload=true" \
+--class com.indeed.dataengineering.AnalyticsTaskApp \
+--conf "spark.hadoop.mapreduce.fileoutputcommitter.algorithm.version=2" \
+--conf "spark.hadoop.fs.s3a.fast.upload=true" \
 --conf "spark.sql.shuffle.partitions=1" \
 --conf "spark.dynamicAllocation.enabled=true" \
 --conf "spark.eventLog.enabled=false" \
 --conf "spark.streaming.receiver.writeAheadLog.enable=true" \
+--conf "spark.streaming.driver.writeAheadLog.closeFileAfterWrite=true" \
+--conf "spark.streaming.receiver.writeAheadLog.closeFileAfterWrite=true" \
 --conf "spark.streaming.unpersist=true" \
 --conf "spark.streaming.ui.retainedBatches=10" \
 --conf "spark.ui.retainedJobs=10" \

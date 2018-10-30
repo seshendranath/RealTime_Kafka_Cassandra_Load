@@ -20,11 +20,9 @@ class GenerateRedshiftDDL extends Logging {
     log.info(s"Building metadata for whitelisted tables $tables")
     val res = buildMetadata(postgresql, tables)
 
-    val redshiftKeywords = Set("partition", "offset", "type", "year", "month")
-
     tables.foreach { tbl =>
       val dropQuery = s"DROP TABLE IF EXISTS ${conf("redshift.schema")}.$tbl;"
-      val createQuery = s"""CREATE TABLE IF NOT EXISTS ${conf("redshift.schema")}.$tbl\n(\ntopic VARCHAR(256)\n,"partition" INTEGER\n,"offset" BIGINT\n,optype VARCHAR(30)\n,""" + res(tbl).map(c => (if (redshiftKeywords contains c._1) s""""${c._1}"""" else c._1)+ " " + postgresqlToRedshiftDataType(c._2)).mkString("\n,") + s"\n) DISTSTYLE KEY DISTKEY (${keyMap(tbl)});"
+      val createQuery = s"""CREATE TABLE IF NOT EXISTS ${conf("redshift.schema")}.$tbl\n(\ntopic VARCHAR(256)\n,"partition" INTEGER\n,"offset" BIGINT\n,op_type VARCHAR(30)\n,binlog_timestamp TIMESTAMP WITHOUT TIME ZONE\n,""" + res(tbl).columns.map(c => escapeColName(c.name)+ " " + postgresqlToRedshiftDataType(c.dataType)).mkString("\n,") + s"\n) DISTSTYLE KEY DISTKEY (${keyMap(tbl)});"
 
       redshift.executeUpdate(dropQuery)
       redshift.executeUpdate(createQuery)

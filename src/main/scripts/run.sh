@@ -19,6 +19,7 @@ spark-submit \
 --executor-cores=${ec} \
 --executor-memory=${em}g \
 --files ~/log4j-spark.properties \
+--class com.indeed.dataengineering.AnalyticsTaskApp \
 --conf "mapreduce.fileoutputcommitter.algorithm.version=2" \
 --conf "fs.s3a.fast.upload=true" \
 --conf "spark.sql.parquet.writeLegacyFormat=true" \

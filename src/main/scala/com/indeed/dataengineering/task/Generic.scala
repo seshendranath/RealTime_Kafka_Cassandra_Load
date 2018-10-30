@@ -71,7 +71,7 @@ class Generic extends Logging {
     log.info(s"Starting from the following offsets: $offsetString")
 
     log.info("Read Kafka streams")
-    val kafkaStream = if (conf.getOrElse("sparkCheck", "false").toBoolean) {
+    val kafkaStream = if (conf.getOrElse("subscribeWholeTopic", "false").toBoolean) {
       spark
         .readStream
         .format("kafka")

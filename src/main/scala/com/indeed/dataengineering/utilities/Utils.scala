@@ -115,7 +115,7 @@ object Utils extends Logging {
       s"""
          |SELECT
          |     name
-         |    ,CASE WHEN data_type = 'VARCHAR' THEN data_type || '(' || max_length + 100 || ')' ELSE data_type END AS data_type
+         |    ,CASE WHEN data_type = 'VARCHAR' THEN data_type || '(' || LEAST(max_length + 100, 65535) || ')' ELSE data_type END AS data_type
          |FROM eravana.dataset_column
          |WHERE dataset_id = $dataset_id
          |ORDER BY ordinal_position
@@ -295,4 +295,14 @@ object Utils extends Logging {
 
   def waitAll[T](implicit ec: ExecutionContext, futures: Seq[Future[T]]): Future[Seq[Try[T]]] = Future.sequence(lift(ec, futures))
 
+
+  def transformations(c: Column): String = {
+    if (c.dataType == "BOOLEAN") {
+      s"CAST(${c.name} AS Boolean) AS ${c.name}"
+    } else if (c.dataType == "TIMESTAMP") {
+      s"FROM_UTC_TIMESTAMP(${c.name}, 'CST') AS ${c.name}"
+    } else {
+      c.name
+    }
+  }
 }

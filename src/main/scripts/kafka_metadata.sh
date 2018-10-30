@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+
+
 cname=$1
 dm=$2
 em=$3
@@ -18,14 +20,16 @@ spark-submit \
 --executor-memory=${em}g \
 --files ~/log4j-spark.properties \
 --class com.indeed.dataengineering.AnalyticsTaskApp \
---conf "spark.hadoop.mapreduce.fileoutputcommitter.algorithm.version=2" \
---conf "spark.hadoop.fs.s3a.fast.upload=true" \
+--conf "mapreduce.fileoutputcommitter.algorithm.version=2" \
+--conf "fs.s3a.fast.upload=true" \
+--conf "spark.sql.parquet.writeLegacyFormat=true" \
+--conf "dfs.block.size=1024m" \
 --conf "spark.sql.shuffle.partitions=1" \
---conf "spark.dynamicAllocation.enabled=true" \
+--conf "spark.cassandra.input.consistency.level=LOCAL_ONE" \
+--conf "spark.cassandra.output.consistency.level=LOCAL_ONE" \
+--conf "spark.dynamicAllocation.enabled=false" \
 --conf "spark.eventLog.enabled=false" \
---conf "spark.streaming.receiver.writeAheadLog.enable=true" \
---conf "spark.streaming.driver.writeAheadLog.closeFileAfterWrite=true" \
---conf "spark.streaming.receiver.writeAheadLog.closeFileAfterWrite=true" \
+--conf "spark.streaming.receiver.writeAheadLog.enable=false" \
 --conf "spark.streaming.unpersist=true" \
 --conf "spark.streaming.ui.retainedBatches=10" \
 --conf "spark.ui.retainedJobs=10" \
@@ -43,7 +47,7 @@ spark-submit \
 --conf "spark.executor.heartbeatInterval=360000" \
 --conf "spark.network.timeout=420000" \
 --conf "spark.cleaner.ttl=120" \
---conf "spark.streaming.backpressure.enabled=true" \
+--conf "spark.streaming.backpressure.enabled=false" \
 --conf "spark.streaming.stopGracefullyOnShutdown=true" \
 --supervise \
-RealTime_Load-assembly-1.0-SNAPSHOT.jar -e=prod --class=com.indeed.dataengineering.task.Generic --runClass=com.indeed.dataengineering.task.$cname $executeMode $skipMetadata --metadata.url=jdbc:postgresql://...:5432/eravana --metadata.user=aguyyala --metadata.password=... --whitelistedTables=tblACLgroups,tblADCaccounts_salesrep_commissions,tblADCadvertiser_rep_revenues,tblADCcommission_adjustment,tblADCcredit_spend,tblADCdaily_advertiser_traffic,tblADCinvoice_lines,tblADCinvoices,tblADCparent_company,tblADCparent_company_advertisers,tblADCquota,tblADCsummary_advertiser,tblADCsummary_employer_action,tblADCultimate_parent,tblADCultimate_parent_association,tblADCusers_accounts,tblCRMgeneric_claims,tblCRMgeneric_invoice_requests,tblCRMgeneric_product_credit,tblCRMgeneric_products,tblCRMusers_groups_historical,tblACLusers,tbladvertiser,tblADScurrency_rates  --targetFormat=parquet  --baseLoc=s3a://indeed-data/datalake/v1/stage/binlog_events --runInterval=5 --subscribeWholeTopic
+RealTime_Load-assembly-1.0-SNAPSHOT.jar -e=prod --class=com.indeed.dataengineering.task.Generic --runClass=com.indeed.dataengineering.task.$cname $executeMode $skipMetadata --subscribeWholeTopic --checkpoint --checkpointBaseLoc=s3://indeed-data/datalake/v1/stage/spark/streaming/checkpoint/

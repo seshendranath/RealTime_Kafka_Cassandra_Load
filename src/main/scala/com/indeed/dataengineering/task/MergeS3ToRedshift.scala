@@ -79,8 +79,10 @@ class MergeS3ToRedshift extends Logging {
 
   def process(tbl: String): Unit = {
     try {
+
       copy(tbl)
       merge(tbl)
+
     } catch {
       case e: Exception => throw e
     }
@@ -157,9 +159,17 @@ class MergeS3ToRedshift extends Logging {
     log.info(s"Start $processName process for $jobName and object $tbl")
     val (instanceId, _) = jc.startJob(jobId)
 
+    val stageSchema = conf("redshift.schema")
+    val finalSchema = conf("redshift.final.schema")
+
+    val dataPresent = checkIfDataPresent(redshift, stageSchema, tbl)
+    if (!dataPresent) {
+      log.info(s"No data to merge...")
+      endJob(jc, jobName, "merge", 1, tbl, instanceId)
+      return
+    }
+
     try {
-      val stageSchema = conf("redshift.schema")
-      val finalSchema = conf("redshift.final.schema")
 
       val createTempTblQuery = generateCreateTempTblQuery(metadata, stageSchema, tbl)
 

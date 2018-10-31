@@ -170,6 +170,21 @@ object Utils extends Logging {
   def escapeColName(c: String): String = if (redshiftKeywords contains c) s""""$c"""" else c
 
 
+  def checkIfDataPresent(redshift: SqlJDBC, schema: String, tbl: String): Boolean = {
+    val query = s"SELECT COUNT(*) AS cnt FROM $schema.$tbl"
+    val rs = redshift.executeQuery(query)
+
+    var dataPresent = true
+    while (rs.next()) {
+      val cnt = rs.getInt("cnt")
+      log.info(s"Record Count of $schema.$tbl: $cnt")
+      dataPresent = if (cnt > 0) true else false
+    }
+
+    dataPresent
+  }
+
+
   def generateRowHashColStr(metadata: Map[String, EravanaMetadata], tbl: String): String = {
     val colStr = metadata(tbl).columns.map(c => if (c.dataType == "BOOLEAN") s"COALESCE(CAST(CAST(${escapeColName(c.name)} AS INTEGER) AS VARCHAR), '')" else s"COALESCE(CAST(${escapeColName(c.name)} AS VARCHAR), '')").mkString(" + ")
 

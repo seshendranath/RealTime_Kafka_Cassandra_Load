@@ -1,4 +1,4 @@
-nohup sh run.sh KafkaMetadata_Load 2 8 1 4 client > KafkaMetadata_Load.log 2>&1 &
+nohup sh kafka_metadata.sh KafkaMetadata_Load 2 8 3 5 client > KafkaMetadata_Load.log 2>&1 &
 
 nohup sh run.sh Tbladvertiser_Load 2 5 1 1 client > Tbladvertiser_Load.log 2>&1 &
 nohup sh run.sh TblADCaccounts_salesrep_commissions_Load 2 5 1 1 client > TblADCaccounts_salesrep_commissions_Load.log 2>&1 &
@@ -13,7 +13,7 @@ nohup sh run.sh TblADCsummary_advertiser_Load 2 5 1 1 client > TblADCsummary_adv
 
 nohup sh run.sh SalesSummary_Load 2 8 1 3 client > SalesSummary_Load.log 2>&1 &
 
-nohup sh kafka_to_s3.sh Kafka_S3_Load 2 4 2 2 client > Kafka_S3_Load.log 2>&1 &
+nohup sh kafka_to_s3.sh Kafka_S3_Load 10 10 3 5 client > Kafka_S3_Load.log 2>&1 &
 
 nohup sh s3_to_redshift.sh > ~/MergeS3ToRedshift.log 2>&1 &
 

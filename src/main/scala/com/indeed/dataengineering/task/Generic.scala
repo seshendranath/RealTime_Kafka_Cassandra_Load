@@ -78,7 +78,7 @@ class Generic extends Logging {
         .option("kafka.bootstrap.servers", brokers)
         .option("subscribe", topics)
         .option("failOnDataLoss", conf.getOrElse("failOnDataLoss", "false"))
-        .option("kafka.max.partition.fetch.bytes", conf.getOrElse("max.partition.fetch.bytes", "2147483647").toInt)
+        .option("kafka.max.partition.fetch.bytes", conf.getOrElse("max.partition.fetch.bytes", "15728640").toInt)
         .load()
     } else {
       spark
@@ -88,7 +88,7 @@ class Generic extends Logging {
         .option(assignoption, assignString)
         .option("startingOffsets", offsetString)
         .option("failOnDataLoss", conf.getOrElse("failOnDataLoss", "false"))
-        .option("kafka.max.partition.fetch.bytes", conf.getOrElse("max.partition.fetch.bytes", "2147483647").toInt)
+        .option("kafka.max.partition.fetch.bytes", conf.getOrElse("max.partition.fetch.bytes", "15728640").toInt)
         .load()
     }
 

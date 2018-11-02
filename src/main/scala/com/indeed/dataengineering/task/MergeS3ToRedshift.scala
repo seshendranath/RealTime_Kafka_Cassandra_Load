@@ -162,14 +162,14 @@ class MergeS3ToRedshift extends Logging {
     val stageSchema = conf("redshift.schema")
     val finalSchema = conf("redshift.final.schema")
 
-    val dataPresent = checkIfDataPresent(redshift, stageSchema, tbl)
-    if (!dataPresent) {
-      log.info(s"No data to merge...")
-      endJob(jc, jobName, "merge", 1, tbl, instanceId)
-      return
-    }
-
     try {
+
+      val dataPresent = checkIfDataPresent(redshift, stageSchema, tbl)
+      if (!dataPresent) {
+        log.info(s"No data to merge...")
+        endJob(jc, jobName, "merge", 1, tbl, instanceId)
+        return
+      }
 
       val createTempTblQuery = generateCreateTempTblQuery(metadata, stageSchema, tbl)
 

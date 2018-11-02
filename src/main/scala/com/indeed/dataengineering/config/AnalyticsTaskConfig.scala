@@ -68,6 +68,10 @@ object AnalyticsTaskConfig {
 
 		conf ++= otherProperties
 
+		if (conf.getOrElse("configFile", "").nonEmpty) {
+			conf ++= Source.fromFile(conf("configFile")).getLines.map(_.split("=", 2)).map { case Array(k, v) => (k, v) }.toMap
+		}
+
 		val convert = Map("env" -> pConf.env)
 
 		implicit class StringImprovements(val s: String) {

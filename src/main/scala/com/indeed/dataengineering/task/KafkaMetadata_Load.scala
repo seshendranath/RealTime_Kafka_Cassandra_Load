@@ -105,7 +105,7 @@ class KafkaMetadata_Load  extends Logging {
     val df = sql(kafkaMetadataQuery).where("tbl_date_modified IS NOT NULL")
 
     log.info("Write Streams to Cassandra Metadata Table")
-    if (conf.getOrElse("checkpoint", "false") == "true") {
+    if (conf.getOrElse("checkpoint", "false").toBoolean) {
       df.as[KafkaMetadata].writeStream.option("checkpointLocation", checkpointDir).foreach(kafkaMetadataWriter).outputMode("append").start
     } else {
       if (partitions.isEmpty) {

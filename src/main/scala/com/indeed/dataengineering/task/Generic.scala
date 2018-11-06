@@ -33,7 +33,7 @@ class Generic extends Logging {
     val skipMetadata = conf.getOrElse("skipMetadata", "false").toBoolean
 
     val (assignoption, assignString, offsetString, partitions) = if (skipMetadata) {
-      ("subscribe", topics, "latest", Set[Int]())
+      (conf.getOrElse("assignString", "subscribe"), topics, conf.getOrElse("offsetString", "latest"), conf.get("partitions").filter(_ != "").map(_.split(",")).getOrElse(Array()).map(_.toInt).toSet)
     } else {
       log.info("Connect to cassandra cluster")
       val cluster = Cluster.builder().addContactPoints(conf("cassandra.host").split(","): _*).build()
@@ -67,30 +67,19 @@ class Generic extends Logging {
       ("assign", aString, oString, partitions)
     }
 
+    log.info("Read Kafka streams")
     log.info(s"Assign following topics and partitions: $assignString")
     log.info(s"Starting from the following offsets: $offsetString")
 
-    log.info("Read Kafka streams")
-    val kafkaStream = if (conf.getOrElse("subscribeWholeTopic", "false").toBoolean) {
-      spark
-        .readStream
-        .format("kafka")
-        .option("kafka.bootstrap.servers", brokers)
-        .option("subscribe", topics)
-        .option("failOnDataLoss", conf.getOrElse("failOnDataLoss", "false"))
-        .option("kafka.max.partition.fetch.bytes", conf.getOrElse("max.partition.fetch.bytes", "15728640").toInt)
-        .load()
-    } else {
-      spark
-        .readStream
-        .format("kafka")
-        .option("kafka.bootstrap.servers", brokers)
-        .option(assignoption, assignString)
-        .option("startingOffsets", offsetString)
-        .option("failOnDataLoss", conf.getOrElse("failOnDataLoss", "false"))
-        .option("kafka.max.partition.fetch.bytes", conf.getOrElse("max.partition.fetch.bytes", "15728640").toInt)
-        .load()
-    }
+    val stream = spark
+      .readStream
+      .format("kafka")
+      .option("kafka.bootstrap.servers", brokers)
+      .option(assignoption, assignString)
+      .option("failOnDataLoss", conf.getOrElse("failOnDataLoss", "false"))
+      .option("kafka.max.partition.fetch.bytes", conf.getOrElse("max.partition.fetch.bytes", "15728640").toInt)
+
+    val kafkaStream = if (!conf.getOrElse("checkpoint", "false").toBoolean || conf.getOrElse("offsetString", "").nonEmpty) stream.option("startingOffsets", offsetString).load else stream.load
 
     //.option("subscribe", topics)
     //.option("startingOffsets", s""" {"${conf("kafka.topic")}":{"0":-1}} """)

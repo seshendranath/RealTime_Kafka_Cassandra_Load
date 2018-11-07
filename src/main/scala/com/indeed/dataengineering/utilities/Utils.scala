@@ -115,7 +115,7 @@ object Utils extends Logging {
       s"""
          |SELECT
          |     name
-         |    ,CASE WHEN data_type = 'VARCHAR' THEN data_type || '(' || LEAST(max_length + 100, 65535) || ')' ELSE data_type END AS data_type
+         |    ,CASE WHEN data_type = 'VARCHAR' THEN data_type || '(' || LEAST(max_length + 500, 65535) || ')' ELSE data_type END AS data_type
          |FROM eravana.dataset_column
          |WHERE dataset_id = $dataset_id
          |ORDER BY ordinal_position
@@ -152,6 +152,19 @@ object Utils extends Logging {
   }
 
 
+  def getBatchKey(postgresql: SqlJDBC, dataset_id: Int): String = {
+    val query = s"SELECT COALESCE(name, '') AS batchKey FROM eravana.dataset_column WHERE dataset_id = $dataset_id AND is_batch_key IS TRUE ORDER BY ordinal_position LIMIT 1"
+
+    log.info(s"Fetching batch key for dataset_id $dataset_id")
+    val rs = postgresql.executeQuery(query)
+
+    var batchKey = ""
+    while (rs.next()) batchKey = rs.getString("batchKey")
+
+    batchKey
+  }
+
+
   def buildMetadata(postgresql: SqlJDBC, tables: Set[String]): Map[String, EravanaMetadata] = {
     log.info("Building Metadata")
     val result = mutable.Map[String, EravanaMetadata]()
@@ -160,7 +173,8 @@ object Utils extends Logging {
       val dataset_id = getDatasetId(postgresql, tbl)
       val columns = getColumns(postgresql, dataset_id)
       val primaryKey = getPrimaryKey(postgresql, dataset_id)
-      result += tbl -> EravanaMetadata(columns, primaryKey)
+      val batchKey = getBatchKey(postgresql, dataset_id)
+      result += tbl -> EravanaMetadata(columns, primaryKey, batchKey)
     }
 
     result.toMap
@@ -195,7 +209,7 @@ object Utils extends Logging {
   def generateRankColStr(metadata: Map[String, EravanaMetadata], tbl: String): String = {
     val pk = metadata(tbl).primaryKey.map(c => escapeColName(c)).mkString(",")
 
-    s"ROW_NUMBER() OVER (PARTITION BY $pk ORDER BY binlog_timestamp DESC)"
+    s"ROW_NUMBER() OVER (PARTITION BY $pk ORDER BY binlog_position DESC, binlog_timestamp DESC)"
   }
 
 
@@ -230,7 +244,10 @@ object Utils extends Logging {
   def generateDeleteQuery(metadata: Map[String, EravanaMetadata], finalSchema: String, tbl: String): String = {
     val pkStr = metadata(tbl).primaryKey.map(c => escapeColName(c)).map(c => s"""stg.$c = $finalSchema.$tbl.$c""").mkString(" AND ")
 
-    s"DELETE FROM $finalSchema.$tbl USING $tbl stg WHERE $pkStr"
+    val batchKey = metadata(tbl).batchKey
+    val bkStr = if (batchKey.nonEmpty) s"AND $finalSchema.$tbl.$batchKey <= stg.$batchKey" else ""
+
+    s"DELETE FROM $finalSchema.$tbl USING $tbl stg WHERE $pkStr $bkStr"
   }
 
 

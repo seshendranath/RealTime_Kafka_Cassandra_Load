@@ -1,3 +1,3 @@
 package com.indeed.dataengineering.models
 
-case class EravanaMetadata (columns: Array[Column], primaryKey: Array[String])
+case class EravanaMetadata (columns: Array[Column], primaryKey: Array[String], batchKey: String)

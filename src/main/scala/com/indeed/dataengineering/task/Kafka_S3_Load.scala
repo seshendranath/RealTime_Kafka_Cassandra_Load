@@ -32,14 +32,14 @@ class Kafka_S3_Load extends Logging {
 
     tables.foreach { tbl =>
 
-      val transformString = Array("topic", "partition", "offset", "op_type", "binlog_timestamp") ++ res(tbl).columns.map(c => transformations(c))
+      val transformString = Array("topic", "partition", "offset", "op_type", "binlog_timestamp", "binlog_position") ++ res(tbl).columns.map(c => transformations(c))
       log.info(s"Bool String for $tbl: ${transformString.mkString(",")}")
 
       log.info(s"Extracting Schema for table $tbl")
       val js = StructType(res(tbl).columns.map(c => StructField(c.name, postgresqlToSparkDataType(c.dataType))))
       log.info(s"Extracted Schema for $tbl: $js")
 
-      val df = rawData.select($"topic", $"partition", $"offset", from_json($"value", MessageSchema.jsonSchema).as("value")).filter($"value.table" === tbl).select($"topic", $"partition", $"offset", $"value.type".as("op_type"), $"value.ts".as("binlog_timestamp"), from_json($"value.data", js).as("data")).select($"topic", $"partition", $"offset", $"op_type", $"binlog_timestamp", $"data.*").selectExpr(transformString: _*).where("op_type IN ('insert', 'update', 'delete')")
+      val df = rawData.select($"topic", $"partition", $"offset", from_json($"value", MessageSchema.jsonSchema).as("value")).filter($"value.table" === tbl).select($"topic", $"partition", $"offset", $"value.type".as("op_type"), $"value.ts".as("binlog_timestamp"), $"value.position".as("binlog_position"), from_json($"value.data", js).as("data")).select($"topic", $"partition", $"offset", $"op_type", $"binlog_timestamp", $"binlog_position", $"data.*").selectExpr(transformString: _*).where("op_type IN ('insert', 'update', 'delete')")
 
       log.info(s"Starting Stream for table $tbl")
       val dfQuery = df.withColumn("dt", current_date).withColumn("hr", hour(current_timestamp)).writeStream.format(conf("targetFormat")).option("checkpointLocation",  s"${conf("s3Uri")}${conf("s3Bucket")}/${conf("baseLoc")}/checkpoint/$tbl/").option("path", s"${conf("s3Uri")}${conf("s3Bucket")}/${conf("baseLoc")}/$tbl").trigger(Trigger.ProcessingTime(s"${conf.getOrElse("runInterval", "5")} minutes")).partitionBy("dt", "hr").start()

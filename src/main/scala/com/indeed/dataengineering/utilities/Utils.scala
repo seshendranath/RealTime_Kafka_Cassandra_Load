@@ -209,7 +209,7 @@ object Utils extends Logging {
   def generateRankColStr(metadata: Map[String, EravanaMetadata], tbl: String): String = {
     val pk = metadata(tbl).primaryKey.map(c => escapeColName(c)).mkString(",")
 
-    s"ROW_NUMBER() OVER (PARTITION BY $pk ORDER BY binlog_position DESC, binlog_timestamp DESC)"
+    s"ROW_NUMBER() OVER (PARTITION BY $pk ORDER BY binlog_file DESC, binlog_position DESC, binlog_timestamp DESC)"
   }
 
 
@@ -245,7 +245,7 @@ object Utils extends Logging {
     val pkStr = metadata(tbl).primaryKey.map(c => escapeColName(c)).map(c => s"""stg.$c = $finalSchema.$tbl.$c""").mkString(" AND ")
 
     val batchKey = metadata(tbl).batchKey
-    val bkStr = if (batchKey.nonEmpty) s"AND $finalSchema.$tbl.$batchKey <= stg.$batchKey" else ""
+    val bkStr = if (batchKey.nonEmpty) s"AND COALESCE($finalSchema.$tbl.$batchKey, '0001-01-01 00:00:00') <= COALESCE(stg.$batchKey, '0001-01-01 00:00:00')" else ""
 
     s"DELETE FROM $finalSchema.$tbl USING $tbl stg WHERE $pkStr $bkStr"
   }

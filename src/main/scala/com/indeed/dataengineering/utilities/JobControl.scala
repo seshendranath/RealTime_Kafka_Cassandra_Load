@@ -87,7 +87,7 @@ class JobControl extends Logging {
          |             ,CAST(etl_end_time AS DATE) AS  last_successful_etl_end_date
          |FROM $db.$JobInstanceTable
          |WHERE job_id = $jobId AND status_flag = 1
-         |ORDER BY etl_end_time DESC LIMIT 1
+         |ORDER BY instance_end_time DESC LIMIT 1
        """.stripMargin
 
     val rs = postgresql.executeQuery(query)

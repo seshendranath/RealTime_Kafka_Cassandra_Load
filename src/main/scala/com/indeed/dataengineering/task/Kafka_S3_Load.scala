@@ -32,7 +32,7 @@ class Kafka_S3_Load extends Logging {
 
     tables.foreach { tbl =>
 
-      val transformString = Array("topic", "partition", "offset", "op_type", "binlog_timestamp", "binlog_position") ++ res(tbl).columns.map(c => transformations(c))
+      val transformString = Array("topic", "partition", "offset", "op_type", "binlog_timestamp", "SPLIT(binlog_position, ':')[0] AS binlog_file", "CAST(SPLIT(binlog_position, ':')[1] AS BIGINT) AS binlog_position") ++ res(tbl).columns.map(c => transformations(c))
       log.info(s"Bool String for $tbl: ${transformString.mkString(",")}")
 
       log.info(s"Extracting Schema for table $tbl")

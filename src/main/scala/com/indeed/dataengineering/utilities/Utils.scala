@@ -241,29 +241,35 @@ object Utils extends Logging {
   }
 
 
-  def generateDeleteQuery(metadata: Map[String, EravanaMetadata], finalSchema: String, tbl: String): String = {
-    val pkStr = metadata(tbl).primaryKey.map(c => escapeColName(c)).map(c => s"""stg.$c = $finalSchema.$tbl.$c""").mkString(" AND ")
+  def generateDeleteQuery(metadata: Map[String, EravanaMetadata], finalSchema: String, tbl: String, historyKeyword: String = ""): String = {
+
+    val (finalTbl, historyDateStr) = if (historyKeyword.nonEmpty) (tbl + historyKeyword, s" AND DATE(stg.binlog_timestamp) = $finalSchema.${tbl + historyKeyword}.event_date") else (tbl, "")
+
+    val pkStr = metadata(tbl).primaryKey.map(c => escapeColName(c)).map(c => s"""stg.$c = $finalSchema.$finalTbl.$c""").mkString(" AND ")
 
     val batchKey = metadata(tbl).batchKey
-    val bkStr = if (batchKey.nonEmpty) s"AND COALESCE($finalSchema.$tbl.$batchKey, '0001-01-01 00:00:00') <= COALESCE(stg.$batchKey, '0001-01-01 00:00:00')" else ""
+    val bkStr = if (batchKey.nonEmpty) s"AND COALESCE($finalSchema.$finalTbl.$batchKey, '0001-01-01 00:00:00') <= COALESCE(stg.$batchKey, '0001-01-01 00:00:00')" else ""
 
-    s"DELETE FROM $finalSchema.$tbl USING $tbl stg WHERE $pkStr $bkStr"
+    s"DELETE FROM $finalSchema.$finalTbl USING $tbl stg WHERE $pkStr $historyDateStr $bkStr"
   }
 
 
-  def generateInsertQuery(metadata: Map[String, EravanaMetadata], finalSchema: String, tbl: String): String = {
+  def generateInsertQuery(metadata: Map[String, EravanaMetadata], finalSchema: String, tbl: String, historyKeyword: String = ""): String = {
     val colStr = generateColStr(metadata, tbl)
     val rowHashStr = generateRowHashColStr(metadata, tbl)
 
+    val (finalTbl, eventDt, eventDtCol) = if (historyKeyword.nonEmpty) (tbl + historyKeyword, "event_date, ", "DATE(binlog_timestamp) AS event_date,") else (tbl, "", "")
+
     s"""
-       |INSERT INTO $finalSchema.$tbl ($colStr, row_hash, is_deleted, etl_deleted_timestamp, etl_inserted_timestamp, etl_updated_timestamp)
+       |INSERT INTO $finalSchema.$finalTbl ($eventDt $colStr, row_hash, is_deleted, etl_deleted_timestamp, etl_inserted_timestamp, etl_updated_timestamp)
        |SELECT
+       |      $eventDtCol
        |      $colStr
        |     ,$rowHashStr AS row_hash
        |     ,CASE WHEN op_type = 'delete' THEN true ELSE false END AS is_deleted
        |     ,CASE WHEN op_type = 'delete' THEN binlog_timestamp ELSE NULL END AS etl_deleted_timestamp
-       |     ,getdate() AS etl_inserted_timestamp
-       |     ,getdate() AS etl_updated_timestamp
+       |     ,CURRENT_TIMESTAMP AS etl_inserted_timestamp
+       |     ,CURRENT_TIMESTAMP AS etl_updated_timestamp
        |FROM $tbl
      """.stripMargin
   }

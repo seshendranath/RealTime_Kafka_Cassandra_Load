@@ -39,11 +39,12 @@ class MergeS3ToRedshift extends Logging {
 
   val metadata: Map[String, EravanaMetadata] = buildMetadata(postgresql, conf("whitelistedTables").split(",").toSet)
 
+  val whitelistedTables: Array[String] = conf("whitelistedTables").split(",").toSet.toArray
+  val whitelistedHistoricalTables : Set[String]= conf("whitelistedHistoricalTables").split(",").toSet
+
   def run(): Unit = {
 
     log.info(s"Job Name: $jobName")
-
-    val whitelistedTables = conf("whitelistedTables").split(",").toSet.toArray
 
     val executorService = Executors.newFixedThreadPool(whitelistedTables.length)
     val executionContext = ExecutionContext.fromExecutorService(executorService)
@@ -179,15 +180,23 @@ class MergeS3ToRedshift extends Logging {
 
       val truncateQuery = generateTruncateQuery(stageSchema, tbl)
 
+      val historyKeyword = conf.getOrElse("historyKeyword", "_history")
+
+      val (historyDeleteQuery, historyInsertQuery) = if (whitelistedHistoricalTables contains (tbl + historyKeyword)) {
+        (generateDeleteQuery(metadata, finalSchema, tbl, historyKeyword) + ";", generateInsertQuery(metadata, finalSchema, tbl, historyKeyword) + ";")
+      } else ("", "")
+
       val transaction =
         s"""
            |BEGIN TRANSACTION;
            |$createTempTblQuery;
            |$deleteQuery;
            |$insertQuery;
+           |$historyDeleteQuery
+           |$historyInsertQuery
            |$truncateQuery;
            |END TRANSACTION;
-       """.stripMargin
+         """.stripMargin
 
       val s = System.nanoTime()
       redshift.executeUpdate(transaction)

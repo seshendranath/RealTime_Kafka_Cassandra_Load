@@ -182,13 +182,14 @@ class MergeS3ToRedshift extends Logging {
 
       val historyKeyword = conf.getOrElse("historyKeyword", "_history")
 
-      val (historyDeleteQuery, historyInsertQuery) = if (whitelistedHistoricalTables contains (tbl + historyKeyword)) {
-        (generateDeleteQuery(metadata, finalSchema, tbl, historyKeyword) + ";", generateInsertQuery(metadata, finalSchema, tbl, historyKeyword) + ";")
-      } else ("", "")
+      val (historyDeleteQuery, historyInsertQuery, lockHistoryTbl) = if (whitelistedHistoricalTables contains (tbl + historyKeyword)) {
+        (generateDeleteQuery(metadata, finalSchema, tbl, historyKeyword) + ";", generateInsertQuery(metadata, finalSchema, tbl, historyKeyword) + ";", s"$finalSchema.$tbl$historyKeyword,")
+      } else ("", "", "")
 
       val transaction =
         s"""
            |BEGIN TRANSACTION;
+           |LOCK $lockHistoryTbl $finalSchema.$tbl;
            |$createTempTblQuery;
            |$deleteQuery;
            |$insertQuery;

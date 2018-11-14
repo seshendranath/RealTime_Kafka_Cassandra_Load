@@ -115,7 +115,9 @@ object Utils extends Logging {
       s"""
          |SELECT
          |     name
-         |    ,CASE WHEN data_type = 'VARCHAR' THEN data_type || '(' || LEAST(max_length * 4, 65535) || ')' ELSE data_type END AS data_type
+         |    ,CASE WHEN data_type = 'VARCHAR' THEN data_type || '(' || LEAST(max_length * 4, 65535) || ')'
+         |          WHEN data_type = 'INTEGER' AND numeric_precision = 10 THEN 'BIGINT'
+         |          ELSE data_type END AS data_type
          |FROM eravana.dataset_column
          |WHERE dataset_id = $dataset_id
          |ORDER BY ordinal_position

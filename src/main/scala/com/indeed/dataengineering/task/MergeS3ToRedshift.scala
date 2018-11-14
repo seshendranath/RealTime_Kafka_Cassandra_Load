@@ -40,7 +40,7 @@ class MergeS3ToRedshift extends Logging {
   val metadata: Map[String, EravanaMetadata] = buildMetadata(postgresql, conf("whitelistedTables").split(",").toSet)
 
   val whitelistedTables: Array[String] = conf("whitelistedTables").split(",").toSet.toArray
-  val whitelistedHistoricalTables : Set[String]= conf("whitelistedHistoricalTables").split(",").toSet
+  val whitelistedHistoricalTables: Set[String] = conf("whitelistedHistoricalTables").split(",").toSet
 
   def run(): Unit = {
 
@@ -172,7 +172,9 @@ class MergeS3ToRedshift extends Logging {
         return
       }
 
-      val createTempTblQuery = generateCreateTempTblQuery(metadata, stageSchema, tbl)
+      val historyKeyword = conf.getOrElse("historyKeyword", "_history")
+
+      //      val createTempTblQuery = generateCreateTempTblQuery(metadata, stageSchema, tbl, finalSchema)
 
       val deleteQuery = generateDeleteQuery(metadata, finalSchema, tbl)
 
@@ -180,11 +182,9 @@ class MergeS3ToRedshift extends Logging {
 
       val truncateQuery = generateTruncateQuery(stageSchema, tbl)
 
-      val historyKeyword = conf.getOrElse("historyKeyword", "_history")
-
-      val (historyDeleteQuery, historyInsertQuery, lockHistoryTbl) = if (whitelistedHistoricalTables contains (tbl + historyKeyword)) {
-        (generateDeleteQuery(metadata, finalSchema, tbl, historyKeyword) + ";", generateInsertQuery(metadata, finalSchema, tbl, historyKeyword) + ";", s"$finalSchema.$tbl$historyKeyword,")
-      } else ("", "", "")
+      val (createTempTblQuery, historyDeleteQuery, historyInsertQuery, lockHistoryTbl) = if (whitelistedHistoricalTables contains (tbl + historyKeyword)) {
+        (generateCreateTempTblQuery(metadata, stageSchema, finalSchema, tbl, historyKeyword), generateDeleteQuery(metadata, finalSchema, tbl, historyKeyword) + ";", generateInsertQuery(metadata, finalSchema, tbl, historyKeyword) + ";", s"$finalSchema.$tbl$historyKeyword,")
+      } else (generateCreateTempTblQuery(metadata, stageSchema, finalSchema, tbl), "", "", "")
 
       val transaction =
         s"""

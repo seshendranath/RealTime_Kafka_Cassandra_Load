@@ -215,29 +215,72 @@ object Utils extends Logging {
   }
 
 
+  def generateBatchRankColStr(metadata: Map[String, EravanaMetadata], tbl: String, historyKeyword: String = ""): String = {
+    val pk = metadata(tbl).primaryKey.map(c => escapeColName(c)).mkString(",")
+    val batchKey = metadata(tbl).batchKey
+
+    if (historyKeyword.nonEmpty) {
+      s"ROW_NUMBER() OVER (PARTITION BY $pk ORDER BY COALESCE(final_$batchKey, '0001-01-01 00:00:00') DESC, COALESCE(hist_final_$batchKey, '0001-01-01 00:00:00') DESC)"
+    } else  s"ROW_NUMBER() OVER (PARTITION BY $pk ORDER BY COALESCE(final_$batchKey, '0001-01-01 00:00:00') DESC)"
+  }
+
+
   def generateColStr(metadata: Map[String, EravanaMetadata], tbl: String): String = {
     metadata(tbl).columns.map(c => escapeColName(c.name)).mkString(",")
   }
 
 
-  def generateDeDupSelectQuery(metadata: Map[String, EravanaMetadata], stageSchema: String, tbl: String): String = {
+  def generateDeDupSelectQuery(metadata: Map[String, EravanaMetadata], stageSchema: String, finalSchema: String, tbl: String, historyKeyword: String = ""): String = {
+    val stgAlias = "stg"
+    val finalAlias = "final"
+    val histFinalAlias = "hist_final"
+
     val colStr = generateColStr(metadata, tbl)
+    val stgColStr = colStr.split(",").map(c => s"$stgAlias.$c").mkString(",")
     val rankColStr = generateRankColStr(metadata, tbl)
+    val batchRankColStr= generateBatchRankColStr(metadata, tbl, historyKeyword)
+
+    val pkStr = metadata(tbl).primaryKey.map(c => escapeColName(c)).map(c => s"""$stgAlias.$c = $finalAlias.$c""").mkString(" AND ")
+    val batchKey = metadata(tbl).batchKey
+    val bkStr = if (batchKey.nonEmpty) s"COALESCE($finalAlias.$batchKey, '0001-01-01 00:00:00') <= COALESCE($stgAlias.$batchKey, '0001-01-01 00:00:00')" else ""
+
+    val (histLeftJoin, histBkStr, histFinalBatchKey, histFinalDeleteFlag) = if (historyKeyword.nonEmpty) {
+      val hLeftJoin = s"LEFT JOIN $finalSchema.${tbl + historyKeyword} $histFinalAlias ON ${pkStr.replace(s"$finalAlias.", s"$histFinalAlias.")} AND DATE($stgAlias.binlog_timestamp) = $histFinalAlias.event_date"
+      val hBkStr = s",CASE WHEN ${bkStr.replace(s"$finalAlias.", s"$histFinalAlias.")} THEN TRUE ELSE FALSE END AS hist_final_delete_flag"
+      (hLeftJoin, hBkStr, s",hist_final.$batchKey AS hist_final_$batchKey", "hist_final_delete_flag,")
+    } else ("", "", "", "")
+
 
     s"""
        |SELECT
-       |      $colStr, op_type, binlog_timestamp
+       |     $colStr, op_type, binlog_timestamp, $histFinalDeleteFlag final_delete_flag
+       |FROM
+       |(
+       |SELECT
+       |      $colStr, op_type, binlog_timestamp, $histFinalDeleteFlag final_delete_flag, $batchRankColStr AS final_rank
+       |FROM
+       |(SELECT
+       |       $stgColStr, op_type, binlog_timestamp
+       |      ,final.$batchKey AS final_$batchKey
+       |      $histFinalBatchKey
+       |      ,CASE WHEN $bkStr THEN TRUE ELSE FALSE END AS final_delete_flag
+       |      $histBkStr
+       |FROM
+       |(SELECT
+       |       $colStr, op_type, binlog_timestamp
        |FROM (SELECT
        |           $colStr, op_type, binlog_timestamp, $rankColStr AS rank
        |      FROM $stageSchema.$tbl
-       |      ) a
-       |WHERE rank  = 1
+       |      ) tmp1
+       |WHERE rank  = 1) stg LEFT JOIN $finalSchema.$tbl final ON $pkStr
+       |$histLeftJoin
+       |)) WHERE final_rank = 1
      """.stripMargin
   }
 
 
-  def generateCreateTempTblQuery(metadata: Map[String, EravanaMetadata], stageSchema: String, tbl: String): String = {
-    val deDupSelectQuery = generateDeDupSelectQuery(metadata, stageSchema, tbl)
+  def generateCreateTempTblQuery(metadata: Map[String, EravanaMetadata], stageSchema: String, finalSchema: String, tbl: String, historyKeyword: String = ""): String = {
+    val deDupSelectQuery = generateDeDupSelectQuery(metadata, stageSchema, finalSchema, tbl, historyKeyword)
 
     s"CREATE TEMP TABLE $tbl AS $deDupSelectQuery"
   }
@@ -245,14 +288,14 @@ object Utils extends Logging {
 
   def generateDeleteQuery(metadata: Map[String, EravanaMetadata], finalSchema: String, tbl: String, historyKeyword: String = ""): String = {
 
-    val (finalTbl, historyDateStr) = if (historyKeyword.nonEmpty) (tbl + historyKeyword, s" AND DATE(stg.binlog_timestamp) = $finalSchema.${tbl + historyKeyword}.event_date") else (tbl, "")
+    val (finalTbl, historyDateStr, deleteFlagStr) = if (historyKeyword.nonEmpty) (tbl + historyKeyword, s" AND DATE(stg.binlog_timestamp) = $finalSchema.${tbl + historyKeyword}.event_date", "AND hist_final_delete_flag") else (tbl, "", "AND final_delete_flag")
 
     val pkStr = metadata(tbl).primaryKey.map(c => escapeColName(c)).map(c => s"""stg.$c = $finalSchema.$finalTbl.$c""").mkString(" AND ")
 
-    val batchKey = metadata(tbl).batchKey
-    val bkStr = if (batchKey.nonEmpty) s"AND COALESCE($finalSchema.$finalTbl.$batchKey, '0001-01-01 00:00:00') <= COALESCE(stg.$batchKey, '0001-01-01 00:00:00')" else ""
+    //    val batchKey = metadata(tbl).batchKey
+    //    val bkStr = if (batchKey.nonEmpty) s"AND COALESCE($finalSchema.$finalTbl.$batchKey, '0001-01-01 00:00:00') <= COALESCE(stg.$batchKey, '0001-01-01 00:00:00')" else ""
 
-    s"DELETE FROM $finalSchema.$finalTbl USING $tbl stg WHERE $pkStr $historyDateStr $bkStr"
+    s"DELETE FROM $finalSchema.$finalTbl USING $tbl stg WHERE $pkStr $historyDateStr $deleteFlagStr"
   }
 
 
@@ -260,7 +303,7 @@ object Utils extends Logging {
     val colStr = generateColStr(metadata, tbl)
     val rowHashStr = generateRowHashColStr(metadata, tbl)
 
-    val (finalTbl, eventDt, eventDtCol) = if (historyKeyword.nonEmpty) (tbl + historyKeyword, "event_date, ", "DATE(binlog_timestamp) AS event_date,") else (tbl, "", "")
+    val (finalTbl, eventDt, eventDtCol, deleteFlagStr) = if (historyKeyword.nonEmpty) (tbl + historyKeyword, "event_date, ", "DATE(binlog_timestamp) AS event_date,", "hist_final_delete_flag") else (tbl, "", "", "final_delete_flag")
 
     s"""
        |INSERT INTO $finalSchema.$finalTbl ($eventDt $colStr, row_hash, is_deleted, etl_deleted_timestamp, etl_inserted_timestamp, etl_updated_timestamp)
@@ -272,7 +315,7 @@ object Utils extends Logging {
        |     ,CASE WHEN op_type = 'delete' THEN binlog_timestamp ELSE NULL END AS etl_deleted_timestamp
        |     ,CURRENT_TIMESTAMP AS etl_inserted_timestamp
        |     ,CURRENT_TIMESTAMP AS etl_updated_timestamp
-       |FROM $tbl
+       |FROM $tbl WHERE $deleteFlagStr
      """.stripMargin
   }
 

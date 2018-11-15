@@ -79,7 +79,10 @@ class Generic extends Logging {
       .option("failOnDataLoss", conf.getOrElse("failOnDataLoss", "false"))
       .option("kafka.max.partition.fetch.bytes", conf.getOrElse("max.partition.fetch.bytes", "15728640").toInt)
 
-    val kafkaStream = if (!conf.getOrElse("checkpoint", "false").toBoolean || conf.getOrElse("offsetString", "").nonEmpty) stream.option("startingOffsets", offsetString).load else stream.load
+    val kafkaStream = if (!conf.getOrElse("checkpoint", "false").toBoolean || conf.getOrElse("offsetString", "").nonEmpty) {
+      log.info(s"Using Starting Offsets: $offsetString")
+      stream.option("startingOffsets", offsetString).load
+    } else stream.load
 
     //.option("subscribe", topics)
     //.option("startingOffsets", s""" {"${conf("kafka.topic")}":{"0":-1}} """)

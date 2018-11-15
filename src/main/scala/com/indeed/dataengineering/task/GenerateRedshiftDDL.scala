@@ -22,7 +22,7 @@ class GenerateRedshiftDDL extends Logging {
 
     tables.foreach { tbl =>
       val dropQuery = s"DROP TABLE IF EXISTS ${conf("redshift.schema")}.$tbl;"
-      val createQuery = s"""CREATE TABLE IF NOT EXISTS ${conf("redshift.schema")}.$tbl\n(\ntopic VARCHAR(256)\n,"partition" INTEGER\n,"offset" BIGINT\n,op_type VARCHAR(30)\n,binlog_timestamp TIMESTAMP WITHOUT TIME ZONE\n,binlog_file VARCHAR(500)\n,binlog_position BIGINT\n,""" + res(tbl).columns.map(c => escapeColName(c.name) + " " + postgresqlToRedshiftDataType(c.dataType)).mkString("\n,") + s"\n,PRIMARY KEY(${res(tbl).primaryKey.mkString(",")}));"
+      val createQuery = s"""CREATE TABLE IF NOT EXISTS ${conf("redshift.schema")}.$tbl\n(\ntopic VARCHAR(256)\n,"partition" INTEGER\n,"offset" BIGINT\n,op_type VARCHAR(30)\n,binlog_timestamp TIMESTAMP WITHOUT TIME ZONE\n,binlog_file VARCHAR(500)\n,binlog_position BIGINT\n,""" + res(tbl).columns.map(c => escapeColName(c.name) + " " + postgresqlToRedshiftDataType(c.dataType)).mkString("\n,") + s"\n,PRIMARY KEY(${res(tbl).primaryKey.map(_.name).mkString(",")}));"
 
       redshift.executeUpdate(dropQuery)
       redshift.executeUpdate(createQuery)

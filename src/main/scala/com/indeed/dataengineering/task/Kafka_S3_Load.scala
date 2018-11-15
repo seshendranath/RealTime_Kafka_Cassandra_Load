@@ -30,19 +30,38 @@ class Kafka_S3_Load extends Logging {
     log.info(s"Building metadata for whitelisted tables $tables")
     val res = buildMetadata(postgresql, tables)
 
+    val pkPrefix = "event_old_pk_"
+    val pkChangeColName = "event_pk_changed"
+
     tables.foreach { tbl =>
 
-      val transformString = Array("topic", "partition", "offset", "op_type", "binlog_timestamp", "SPLIT(binlog_position, ':')[0] AS binlog_file", "CAST(SPLIT(binlog_position, ':')[1] AS BIGINT) AS binlog_position") ++ res(tbl).columns.map(c => transformations(c))
+      val pk = res(tbl).primaryKey.map(_.name)
+      val pkCols = pk.map(c => s"$pkPrefix$c") :+ pkChangeColName
+      val pkArray = pk.map(c => s"COALESCE(old.$c, data.$c) AS $pkPrefix$c") :+ ("CASE WHEN " + pk.map(c => s"COALESCE(old.$c, data.$c) = data.$c").mkString(" AND ") + s" THEN FALSE ELSE TRUE END AS $pkChangeColName")
+
+      val transformString = Array("topic", "partition", "offset", "op_type", "binlog_timestamp", "SPLIT(binlog_position, ':')[0] AS binlog_file", "CAST(SPLIT(binlog_position, ':')[1] AS BIGINT) AS binlog_position") ++ res(tbl).columns.map(c => transformations(c)) ++ pkCols
       log.info(s"Bool String for $tbl: ${transformString.mkString(",")}")
 
       log.info(s"Extracting Schema for table $tbl")
       val js = StructType(res(tbl).columns.map(c => StructField(c.name, postgresqlToSparkDataType(c.dataType))))
       log.info(s"Extracted Schema for $tbl: $js")
 
-      val df = rawData.select($"topic", $"partition", $"offset", from_json($"value", MessageSchema.jsonSchema).as("value")).filter($"value.table" === tbl).select($"topic", $"partition", $"offset", $"value.type".as("op_type"), $"value.ts".as("binlog_timestamp"), $"value.position".as("binlog_position"), from_json($"value.data", js).as("data")).select($"topic", $"partition", $"offset", $"op_type", $"binlog_timestamp", $"binlog_position", $"data.*").selectExpr(transformString: _*).where("op_type IN ('insert', 'update', 'delete')")
+      log.info(s"Extracting Old Primary Key Schema for table $tbl")
+      val oldJs = StructType(res(tbl).primaryKey.map(c => StructField(c.name, postgresqlToSparkDataType(c.dataType))))
+      log.info(s"Extracted Old Primary Key Schema for $tbl: $oldJs")
+
+      val selectCols = Array("topic", "partition", "offset", "op_type", "binlog_timestamp", "binlog_position", "data.*") ++ pkArray
+      val df = rawData.select($"topic", $"partition", $"offset", from_json($"value", MessageSchema.jsonSchema).as("value")).filter($"value.table" === tbl).select($"topic", $"partition", $"offset", $"value.type".as("op_type"), $"value.ts".as("binlog_timestamp"), $"value.position".as("binlog_position"), from_json($"value.data", js).as("data"), from_json($"value.old", oldJs).as("old")).selectExpr(selectCols: _*).selectExpr(transformString: _*).where("op_type IN ('insert', 'update', 'delete')").withColumn("dt", current_date).withColumn("hr", hour(current_timestamp))
+
+      val finalCols = Array("topic", "partition", "offset", "op_type", "binlog_timestamp", "binlog_file", "binlog_position", "dt", "hr") ++ res(tbl).columns.map(_.name)
+      log.info(s"Selecting Final Cols for the $tbl: ${finalCols.mkString(",")}")
+      val df1 = df.selectExpr(finalCols: _*)
+      val df2 = df.where(s"$pkChangeColName = TRUE").selectExpr((df.columns.toSet diff pk.toSet).map(c => if (c.startsWith(pkPrefix)) s"$c AS ${c.stripPrefix(pkPrefix)}" else if (c == "op_type") "'delete' AS op_type" else c).toArray: _*).drop(pkChangeColName).selectExpr(finalCols: _*)
+      val finalDf = df1.union(df2)
 
       log.info(s"Starting Stream for table $tbl")
-      val dfQuery = df.withColumn("dt", current_date).withColumn("hr", hour(current_timestamp)).writeStream.format(conf("targetFormat")).option("checkpointLocation",  s"${conf("s3Uri")}${conf("s3Bucket")}/${conf("baseLoc")}/checkpoint/$tbl/").option("path", s"${conf("s3Uri")}${conf("s3Bucket")}/${conf("baseLoc")}/$tbl").trigger(Trigger.ProcessingTime(s"${conf.getOrElse("runInterval", "5")} minutes")).partitionBy("dt", "hr").start()
+      //      val dfQuery = finalDf.writeStream.outputMode("append").format("console").start
+      val dfQuery = finalDf.writeStream.outputMode("append").format(conf("targetFormat")).option("checkpointLocation", s"${conf("s3Uri")}${conf("s3Bucket")}/${conf("baseLoc")}/checkpoint/$tbl/").option("path", s"${conf("s3Uri")}${conf("s3Bucket")}/${conf("baseLoc")}/$tbl").trigger(Trigger.ProcessingTime(s"${conf.getOrElse("runInterval", "5")} minutes")).partitionBy("dt", "hr").start()
       log.info(s"Query id for $tbl: ${dfQuery.id}")
     }
 

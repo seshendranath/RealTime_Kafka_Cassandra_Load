@@ -134,10 +134,15 @@ object Utils extends Logging {
   }
 
 
-  def getPrimaryKey(postgresql: SqlJDBC, dataset_id: Int): Array[String] = {
+  def getPrimaryKey(postgresql: SqlJDBC, dataset_id: Int): Array[Column] = {
     val query =
       s"""
-         |SELECT name FROM
+         |SELECT
+         |      name
+         |     ,CASE WHEN data_type = 'VARCHAR' THEN data_type || '(' || LEAST(max_length * 4, 65535) || ')'
+         |          WHEN data_type = 'INTEGER' AND numeric_precision = 10 THEN 'BIGINT'
+         |          ELSE data_type END AS data_type
+         |FROM
          |(SELECT * FROM eravana.dataset_primary_key WHERE dataset_id = $dataset_id) a
          |JOIN eravana.dataset_column b ON a.dataset_id = b.dataset_id AND a.dataset_column_id = b.dataset_column_id
          |ORDER BY a.ordinal_position
@@ -146,9 +151,9 @@ object Utils extends Logging {
     log.info(s"Fetching primary key for DataSet Id $dataset_id")
     val rs = postgresql.executeQuery(query)
 
-    val result = mutable.ArrayBuffer[String]()
+    val result = mutable.ArrayBuffer[Column]()
 
-    while (rs.next()) result += rs.getString("name")
+    while (rs.next()) result += Column(rs.getString("name"), rs.getString("data_type"))
 
     result.toArray
   }
@@ -209,14 +214,14 @@ object Utils extends Logging {
 
 
   def generateRankColStr(metadata: Map[String, EravanaMetadata], tbl: String): String = {
-    val pk = metadata(tbl).primaryKey.map(c => escapeColName(c)).mkString(",")
+    val pk = metadata(tbl).primaryKey.map(c => escapeColName(c.name)).mkString(",")
 
     s"ROW_NUMBER() OVER (PARTITION BY $pk ORDER BY binlog_file DESC, binlog_position DESC, binlog_timestamp DESC)"
   }
 
 
   def generateBatchRankColStr(metadata: Map[String, EravanaMetadata], tbl: String, historyKeyword: String = ""): String = {
-    val pk = metadata(tbl).primaryKey.map(c => escapeColName(c)).mkString(",")
+    val pk = metadata(tbl).primaryKey.map(c => escapeColName(c.name)).mkString(",")
     val batchKey = metadata(tbl).batchKey
 
     if (historyKeyword.nonEmpty) {
@@ -240,7 +245,7 @@ object Utils extends Logging {
     val rankColStr = generateRankColStr(metadata, tbl)
     val batchRankColStr= generateBatchRankColStr(metadata, tbl, historyKeyword)
 
-    val pkStr = metadata(tbl).primaryKey.map(c => escapeColName(c)).map(c => s"""$stgAlias.$c = $finalAlias.$c""").mkString(" AND ")
+    val pkStr = metadata(tbl).primaryKey.map(c => escapeColName(c.name)).map(c => s"""$stgAlias.$c = $finalAlias.$c""").mkString(" AND ")
     val batchKey = metadata(tbl).batchKey
     val bkStr = if (batchKey.nonEmpty) s"COALESCE($finalAlias.$batchKey, '0001-01-01 00:00:00') <= COALESCE($stgAlias.$batchKey, '0001-01-01 00:00:00')" else ""
 
@@ -290,7 +295,7 @@ object Utils extends Logging {
 
     val (finalTbl, historyDateStr, deleteFlagStr) = if (historyKeyword.nonEmpty) (tbl + historyKeyword, s" AND DATE(stg.binlog_timestamp) = $finalSchema.${tbl + historyKeyword}.event_date", "AND hist_final_delete_flag") else (tbl, "", "AND final_delete_flag")
 
-    val pkStr = metadata(tbl).primaryKey.map(c => escapeColName(c)).map(c => s"""stg.$c = $finalSchema.$finalTbl.$c""").mkString(" AND ")
+    val pkStr = metadata(tbl).primaryKey.map(c => escapeColName(c.name)).map(c => s"""stg.$c = $finalSchema.$finalTbl.$c""").mkString(" AND ")
 
     //    val batchKey = metadata(tbl).batchKey
     //    val bkStr = if (batchKey.nonEmpty) s"AND COALESCE($finalSchema.$finalTbl.$batchKey, '0001-01-01 00:00:00') <= COALESCE(stg.$batchKey, '0001-01-01 00:00:00')" else ""

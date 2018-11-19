@@ -14,6 +14,7 @@ import com.indeed.dataengineering.models.EravanaMetadata
 import com.indeed.dataengineering.utilities.{JobControl, Logging, SqlJDBC}
 import com.indeed.dataengineering.utilities.S3Utils._
 import com.indeed.dataengineering.utilities.Utils._
+import com.indeed.dataengineering.utilities.SqlUtils._
 
 import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.util.{Failure, Success}

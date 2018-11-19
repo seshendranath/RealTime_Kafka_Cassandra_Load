@@ -9,7 +9,7 @@ package com.indeed.dataengineering.task
 import com.datastax.spark.connector.cql.CassandraConnector
 import com.indeed.dataengineering.AnalyticsTaskApp._
 import com.indeed.dataengineering.models._
-import com.indeed.dataengineering.utilities.Utils.getMetaQueries
+import com.indeed.dataengineering.utilities.SqlUtils.getMetaQueries
 import org.apache.spark.sql._
 import org.apache.spark.sql.functions.{log => _, _}
 import com.github.nscala_time.time.Imports._

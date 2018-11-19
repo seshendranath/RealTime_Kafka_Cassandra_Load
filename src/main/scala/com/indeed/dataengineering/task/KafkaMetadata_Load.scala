@@ -14,7 +14,7 @@ import com.indeed.dataengineering.models._
 import com.datastax.spark.connector.cql.CassandraConnector
 import com.indeed.dataengineering.utilities.Logging
 import org.apache.spark.sql.functions.{log => _, _}
-import com.indeed.dataengineering.utilities.Utils.{getMetaQueries, getStatQueries}
+import com.indeed.dataengineering.utilities.SqlUtils.{getMetaQueries, getStatQueries}
 
 
 class KafkaMetadata_Load  extends Logging {

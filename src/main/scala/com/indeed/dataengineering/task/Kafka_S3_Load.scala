@@ -13,6 +13,7 @@ import com.indeed.dataengineering.AnalyticsTaskApp._
 import com.indeed.dataengineering.utilities.{Logging, SqlJDBC}
 import com.indeed.dataengineering.utilities.SparkUtils._
 import com.indeed.dataengineering.utilities.Utils._
+import com.indeed.dataengineering.utilities.SqlUtils._
 import com.indeed.dataengineering.models._
 import org.apache.spark.sql.streaming.Trigger
 

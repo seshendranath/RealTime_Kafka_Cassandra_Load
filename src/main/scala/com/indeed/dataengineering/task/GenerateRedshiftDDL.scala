@@ -3,6 +3,7 @@ package com.indeed.dataengineering.task
 import com.indeed.dataengineering.GenericDaemon.conf
 import com.indeed.dataengineering.utilities.{Logging, SqlJDBC}
 import com.indeed.dataengineering.utilities.Utils._
+import com.indeed.dataengineering.utilities.SqlUtils._
 
 class GenerateRedshiftDDL extends Logging {
   def run(): Unit = {

@@ -13,7 +13,7 @@ import scala.util.{Failure, Success, Try}
 
 object Utils extends Logging {
 
-  val redshiftKeywords = Set("partition", "offset", "type", "year", "month")
+  val redshiftKeywords = Set("partition", "offset", "type", "year", "month", "percent")
 
   val quoteTypes = Set("StringType", "DateType", "TimestampType")
 

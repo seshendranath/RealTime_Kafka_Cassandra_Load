@@ -12,7 +12,7 @@ crossPaths := false
 
 publishArtifact in(Compile, packageSrc) := true
 
-val sparkVersion = "2.3.1"
+val sparkVersion = "2.3.2"
 val kafkaVersion = "2.0.0"
 val awsVersion = "1.11.383"
 val jsonVersion = "3.6.0"
@@ -38,6 +38,7 @@ libraryDependencies ++= Seq(
   "org.apache.kafka" %% "kafka" % kafkaVersion,
   "org.apache.kafka" % "kafka-clients" % kafkaVersion,
   "org.apache.spark" %% "spark-streaming-kafka-0-10" % sparkVersion,
+  //  "org.apache.spark" %% "spark-sql-kafka-0-10" % sparkVersion,
 
   // Json Libraries
   "org.json4s" %% "json4s-native" % jsonVersion,
@@ -50,7 +51,7 @@ libraryDependencies ++= Seq(
   "com.amazonaws" % "aws-java-sdk-s3" % awsVersion,
   "com.amazonaws" % "aws-java-sdk-core" % awsVersion,
   "org.apache.hadoop" % "hadoop-aws" % "2.8.1"
-    exclude("javax.servlet",     "servlet-api")
+    exclude("javax.servlet", "servlet-api")
     exclude("javax.servlet.jsp", "jsp-api")
     exclude("org.mortbay.jetty", "servlet-api"),
 

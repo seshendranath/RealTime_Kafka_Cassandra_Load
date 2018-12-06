@@ -210,14 +210,14 @@ object SqlUtils {
 
     s"""
        |SELECT
-       |     $colStr, op_type, binlog_timestamp, $histFinalDeleteFlag final_delete_flag
+       |     $colStr, op_type, binlog_timestamp, etl_inserted_timestamp, $histFinalDeleteFlag final_delete_flag
        |FROM
        |(
        |SELECT
-       |      $colStr, op_type, binlog_timestamp, $histFinalDeleteFlag final_delete_flag, $batchRankColStr AS final_rank
+       |      $colStr, op_type, binlog_timestamp, etl_inserted_timestamp, $histFinalDeleteFlag final_delete_flag, $batchRankColStr AS final_rank
        |FROM
        |(SELECT
-       |       $stgColStr, op_type, binlog_timestamp
+       |       $stgColStr, op_type, binlog_timestamp, final.etl_inserted_timestamp AS etl_inserted_timestamp
        |      ,final.$batchKey AS final_$batchKey
        |      $histFinalBatchKey
        |      ,CASE WHEN $bkStr THEN TRUE ELSE FALSE END AS final_delete_flag
@@ -259,18 +259,20 @@ object SqlUtils {
   def generateInsertQuery(metadata: Map[String, EravanaMetadata], finalSchema: String, tbl: String, historyKeyword: String = ""): String = {
     val colStr = generateColStr(metadata, tbl)
     val rowHashStr = generateRowHashColStr(metadata, tbl)
+    val batchKey = metadata(tbl).batchKey
 
-    val (finalTbl, eventDt, eventDtCol, deleteFlagStr) = if (historyKeyword.nonEmpty) (tbl + historyKeyword, "event_date, ", "DATE(binlog_timestamp) AS event_date,", "hist_final_delete_flag") else (tbl, "", "", "final_delete_flag")
+    val (finalTbl, eventDt, eventDtCol, compareDt, compareDtCol, deleteFlagStr) = if (historyKeyword.nonEmpty) (tbl + historyKeyword, "event_date,", "DATE(binlog_timestamp) AS event_date,", "compare_timestamp,", s"COALESCE($batchKey, CURRENT_TIMESTAMP) AS compare_timestamp,", "hist_final_delete_flag") else (tbl, "", "", "", "", "final_delete_flag")
 
     s"""
-       |INSERT INTO $finalSchema.$finalTbl ($eventDt $colStr, row_hash, is_deleted, etl_deleted_timestamp, etl_inserted_timestamp, etl_updated_timestamp)
+       |INSERT INTO $finalSchema.$finalTbl ($eventDt $compareDt $colStr, row_hash, is_deleted, etl_deleted_timestamp, etl_inserted_timestamp, etl_updated_timestamp)
        |SELECT
        |      $eventDtCol
+       |      $compareDtCol
        |      $colStr
        |     ,$rowHashStr AS row_hash
        |     ,CASE WHEN op_type = 'delete' THEN true ELSE false END AS is_deleted
        |     ,CASE WHEN op_type = 'delete' THEN binlog_timestamp ELSE NULL END AS etl_deleted_timestamp
-       |     ,CURRENT_TIMESTAMP AS etl_inserted_timestamp
+       |     ,COALESCE(etl_inserted_timestamp, CURRENT_TIMESTAMP) AS etl_inserted_timestamp
        |     ,CURRENT_TIMESTAMP AS etl_updated_timestamp
        |FROM $tbl WHERE $deleteFlagStr
      """.stripMargin

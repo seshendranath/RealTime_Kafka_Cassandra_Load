@@ -202,7 +202,7 @@ object SqlUtils {
     val bkStr = if (batchKey.nonEmpty) s"COALESCE($finalAlias.$batchKey, '0001-01-01 00:00:00') <= COALESCE($stgAlias.$batchKey, '0001-01-01 00:00:00')" else ""
 
     val (histLeftJoin, histBkStr, histFinalBatchKey, histFinalDeleteFlag) = if (historyKeyword.nonEmpty) {
-      val hLeftJoin = s"LEFT JOIN $finalSchema.${tbl + historyKeyword} $histFinalAlias ON ${pkStr.replace(s"$finalAlias.", s"$histFinalAlias.")} AND DATE($stgAlias.binlog_timestamp) = $histFinalAlias.event_date"
+      val hLeftJoin = s"LEFT JOIN $finalSchema.${tbl + historyKeyword} $histFinalAlias ON ${pkStr.replace(s"$finalAlias.", s"$histFinalAlias.")} AND DATE($stgAlias.$batchKey) = $histFinalAlias.event_date"
       val hBkStr = s",CASE WHEN ${bkStr.replace(s"$finalAlias.", s"$histFinalAlias.")} THEN TRUE ELSE FALSE END AS hist_final_delete_flag"
       (hLeftJoin, hBkStr, s",hist_final.$batchKey AS hist_final_$batchKey", "hist_final_delete_flag,")
     } else ("", "", "", "")
@@ -244,8 +244,9 @@ object SqlUtils {
 
 
   def generateDeleteQuery(metadata: Map[String, EravanaMetadata], finalSchema: String, tbl: String, historyKeyword: String = ""): String = {
+    val batchKey = metadata(tbl).batchKey
 
-    val (finalTbl, historyDateStr, deleteFlagStr) = if (historyKeyword.nonEmpty) (tbl + historyKeyword, s" AND DATE(stg.binlog_timestamp) = $finalSchema.${tbl + historyKeyword}.event_date", "AND hist_final_delete_flag") else (tbl, "", "AND final_delete_flag")
+    val (finalTbl, historyDateStr, deleteFlagStr) = if (historyKeyword.nonEmpty) (tbl + historyKeyword, s" AND DATE(stg.$batchKey) = $finalSchema.${tbl + historyKeyword}.event_date", "AND hist_final_delete_flag") else (tbl, "", "AND final_delete_flag")
 
     val pkStr = metadata(tbl).primaryKey.map(c => escapeColName(c.name)).map(c => s"""stg.$c = $finalSchema.$finalTbl.$c""").mkString(" AND ")
 
@@ -261,7 +262,7 @@ object SqlUtils {
     val rowHashStr = generateRowHashColStr(metadata, tbl)
     val batchKey = metadata(tbl).batchKey
 
-    val (finalTbl, eventDt, eventDtCol, compareDt, compareDtCol, deleteFlagStr) = if (historyKeyword.nonEmpty) (tbl + historyKeyword, "event_date,", "DATE(binlog_timestamp) AS event_date,", "compare_timestamp,", s"COALESCE($batchKey, CURRENT_TIMESTAMP) AS compare_timestamp,", "hist_final_delete_flag") else (tbl, "", "", "", "", "final_delete_flag")
+    val (finalTbl, eventDt, eventDtCol, compareDt, compareDtCol, deleteFlagStr) = if (historyKeyword.nonEmpty) (tbl + historyKeyword, "event_date,", s"DATE(COALESCE($batchKey, CURRENT_TIMESTAMP)) AS event_date,", "compare_timestamp,", s"COALESCE($batchKey, CURRENT_TIMESTAMP) AS compare_timestamp,", "hist_final_delete_flag") else (tbl, "", "", "", "", "final_delete_flag")
 
     s"""
        |INSERT INTO $finalSchema.$finalTbl ($eventDt $compareDt $colStr, row_hash, is_deleted, etl_deleted_timestamp, etl_inserted_timestamp, etl_updated_timestamp)

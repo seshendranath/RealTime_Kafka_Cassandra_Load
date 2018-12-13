@@ -6,13 +6,17 @@ package com.indeed.dataengineering.utilities
 
 
 import com.github.nscala_time.time.Imports.DateTime
+import com.indeed.dataengineering.GenericDaemon.conf
 import com.indeed.dataengineering.models.{Column, EravanaMetadata}
-import com.indeed.dataengineering.utilities.Utils.{log, redshiftKeywords}
+import com.indeed.dataengineering.utilities.Utils.redshiftKeywords
+import org.apache.log4j.Level
+
 import scala.collection.mutable
 
 
-object SqlUtils {
+object SqlUtils extends Logging {
 
+  log.setLevel(Level.toLevel(conf.getOrElse("logLevel", "Info")))
 
   def getSetClause(opType: String): String = {
     if (opType.startsWith("i")) s"${opType}ed_records = ${opType}ed_records + 1" else s"${opType}d_records = ${opType}d_records + 1"
@@ -150,7 +154,7 @@ object SqlUtils {
     var dataPresent = true
     while (rs.next()) {
       val cnt = rs.getInt("cnt")
-      log.info(s"Record Count of $schema.$tbl: $cnt")
+      log.debug(s"Record Count of $schema.$tbl: $cnt")
       dataPresent = if (cnt > 0) true else false
     }
 

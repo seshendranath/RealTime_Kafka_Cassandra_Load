@@ -9,9 +9,13 @@ import java.sql.ResultSet
 import javax.sql.rowset.CachedRowSet
 import com.sun.rowset.CachedRowSetImpl
 import java.sql.DriverManager
+import com.indeed.dataengineering.GenericDaemon.conf
+import org.apache.log4j.Level
 
 
 class SqlJDBC(rdb: String, url: String, user: String, password: String) extends Logging {
+
+  log.setLevel(Level.toLevel(conf.getOrElse("logLevel", "Info")))
 
   val driverMap = Map("postgresql" -> "org.postgresql.Driver", "redshift" -> "com.amazon.redshift.jdbc.Driver")
   val driver = driverMap(rdb)
@@ -32,7 +36,7 @@ class SqlJDBC(rdb: String, url: String, user: String, password: String) extends 
     val rowset: CachedRowSet = new CachedRowSetImpl
 
     try {
-      log.info(s"$rdb - Running Query: $query")
+      log.debug(s"$rdb - Running Query: $query")
       val rs = statement.executeQuery(query)
       rowset.populate(rs)
 
@@ -62,7 +66,7 @@ class SqlJDBC(rdb: String, url: String, user: String, password: String) extends 
     var rs: Int = -1
 
     try {
-      log.info(s"$rdb - Running Query: $query")
+      log.debug(s"$rdb - Running Query: $query")
       rs = statement.executeUpdate(query)
 
     } catch {

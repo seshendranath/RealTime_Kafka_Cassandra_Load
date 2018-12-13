@@ -11,12 +11,15 @@ import java.text.SimpleDateFormat
 import com.amazonaws.services.s3.AmazonS3
 import com.amazonaws.services.s3.model.{ListObjectsV2Request, ListObjectsV2Result, PutObjectResult}
 import com.indeed.dataengineering.GenericDaemon.{conf, s3}
+import org.apache.log4j.Level
 
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.JavaConversions._
 
 
 object S3Utils extends Logging {
+
+  log.setLevel(Level.toLevel(conf.getOrElse("logLevel", "Info")))
 
   def getS3Paths(sourcePath: String, timeFormat: String, startTimestamp: String, endTimestamp: String): Array[(String, Long)] = {
 
@@ -25,7 +28,7 @@ object S3Utils extends Logging {
 
     val req = new ListObjectsV2Request().withBucketName(conf("s3Bucket")).withPrefix(sourcePath + "/")
 
-    log.info(s"Fetching s3 paths under $sourcePath between $startTimestamp and $endTimestamp")
+    log.debug(s"Fetching s3 paths under $sourcePath between $startTimestamp and $endTimestamp")
     var result = new ListObjectsV2Result
     do {
       result = s3.listObjectsV2(req)

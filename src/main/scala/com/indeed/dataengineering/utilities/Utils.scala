@@ -7,11 +7,15 @@ package com.indeed.dataengineering.utilities
 
 import com.indeed.dataengineering.GenericDaemon.conf
 import com.indeed.dataengineering.models.Column
+import org.apache.log4j.Level
+
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success, Try}
 
 
 object Utils extends Logging {
+
+  log.setLevel(Level.toLevel(conf.getOrElse("logLevel", "Info")))
 
   val redshiftKeywords = Set("partition", "offset", "type", "year", "month", "percent")
 
@@ -61,7 +65,7 @@ object Utils extends Logging {
   def timeit(s: Long, msg: String): Unit = {
     val e = System.nanoTime()
     val totalTime = (e - s) / (1e9 * 60)
-    log.info(msg + " " + f"$totalTime%2.2f" + " mins")
+    log.debug(msg + " " + f"$totalTime%2.2f" + " mins")
   }
 
 
@@ -99,7 +103,7 @@ object Utils extends Logging {
 
 
   def endJob(jc: JobControl, jobName: String, processName: String, statusFlag: Int, tbl: String, instanceId: String, startTimestamp: String = "1900-01-01", endTimestamp: String = "1900-01-01"): Int = {
-    log.info(s"End Job $jobName, $processName process for object $tbl with ${if (statusFlag == 1) "Success" else "Failed"} Status")
+    log.debug(s"End Job $jobName, $processName process for object $tbl with ${if (statusFlag == 1) "Success" else "Failed"} Status")
     jc.endJob(instanceId, statusFlag, startTimestamp, endTimestamp)
   }
 

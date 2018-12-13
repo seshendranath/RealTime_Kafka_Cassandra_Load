@@ -15,12 +15,15 @@ import com.indeed.dataengineering.utilities.{JobControl, Logging, SqlJDBC}
 import com.indeed.dataengineering.utilities.S3Utils._
 import com.indeed.dataengineering.utilities.Utils._
 import com.indeed.dataengineering.utilities.SqlUtils._
+import org.apache.log4j.Level
 
 import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.util.{Failure, Success}
 
 
 class MergeS3ToRedshift extends Logging {
+
+  log.setLevel(Level.toLevel(conf.getOrElse("logLevel", "Info")))
 
   val jobName: String = this.getClass.getSimpleName
 
@@ -111,25 +114,25 @@ class MergeS3ToRedshift extends Logging {
     val processName = "copy"
 
     val jobId = jc.getJobId(jobName, processName, tbl)
-    log.info(s"Job Id for job $jobName, $processName process and object $tbl: $jobId")
+    log.debug(s"Job Id for job $jobName, $processName process and object $tbl: $jobId")
 
-    log.info(s"Start $processName process for $jobName and object $tbl")
+    log.debug(s"Start $processName process for $jobName and object $tbl")
     val (instanceId, lastSuccessfulRunDetails) = jc.startJob(jobId)
-    log.info(s"Last Successful Run Details for $processName process of $jobName and object $tbl: $lastSuccessfulRunDetails")
+    log.debug(s"Last Successful Run Details for $processName process of $jobName and object $tbl: $lastSuccessfulRunDetails")
 
     val defaultStartTimestamp = DateTime.now.minusDays(1).toString(timeFormat)
     val startTimestamp = lastSuccessfulRunDetails.getOrElse("last_successful_etl_end_time", defaultStartTimestamp)
     val endTimestamp = DateTime.now.toString(timeFormat)
 
     try {
-      log.info(s"Start and End Timestamps for $processName process of $jobName and $tbl: $startTimestamp and $endTimestamp")
+      log.debug(s"Start and End Timestamps for $processName process of $jobName and $tbl: $startTimestamp and $endTimestamp")
 
       val sourcePath = conf("baseLoc") + s"/$tbl"
 
       val ftp = getS3Paths(sourcePath, timeFormat, startTimestamp, endTimestamp)
 
       if (ftp.isEmpty) {
-        log.info(s"No files to copy...")
+        log.debug(s"No files to copy...")
         endJob(jc, jobName, processName, 1, tbl, instanceId, startTimestamp, endTimestamp)
         return
       }
@@ -138,7 +141,7 @@ class MergeS3ToRedshift extends Logging {
 
       val manifestFileName = getManifestFileName(tbl, endTimestamp, instanceId)
 
-      log.info(s"Uploading manifest file $manifestFileName to s3")
+      log.debug(s"Uploading manifest file $manifestFileName to s3")
       uploadToS3(s3, s3Bucket, manifestFileName, manifestFileContents)
 
       runCopyCmd(redshift, tbl, manifestFileName)
@@ -156,9 +159,9 @@ class MergeS3ToRedshift extends Logging {
     val processName = "merge"
 
     val jobId = jc.getJobId(jobName, processName, tbl)
-    log.info(s"Job Id for job $jobName, $processName process and object $tbl: $jobId")
+    log.debug(s"Job Id for job $jobName, $processName process and object $tbl: $jobId")
 
-    log.info(s"Start $processName process for $jobName and object $tbl")
+    log.debug(s"Start $processName process for $jobName and object $tbl")
     val (instanceId, _) = jc.startJob(jobId)
 
     val stageSchema = conf("redshift.schema")
@@ -168,7 +171,7 @@ class MergeS3ToRedshift extends Logging {
 
       val dataPresent = checkIfDataPresent(redshift, stageSchema, tbl)
       if (!dataPresent) {
-        log.info(s"No data to merge...")
+        log.debug(s"No data to merge...")
         endJob(jc, jobName, "merge", 1, tbl, instanceId)
         return
       }

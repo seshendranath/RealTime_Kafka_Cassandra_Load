@@ -57,6 +57,8 @@ class MergeS3ToRedshift extends Logging {
     try {
       while (true) {
 
+        log.info(s"Starting...")
+
         if (conf.getOrElse("runSequentially", "false").toBoolean) {
           whitelistedTables.foreach(tbl => process(tbl))
         } else {

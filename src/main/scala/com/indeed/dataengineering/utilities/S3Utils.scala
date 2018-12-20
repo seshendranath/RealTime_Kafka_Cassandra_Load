@@ -10,7 +10,8 @@ import java.text.SimpleDateFormat
 
 import com.amazonaws.services.s3.AmazonS3
 import com.amazonaws.services.s3.model.{ListObjectsV2Request, ListObjectsV2Result, PutObjectResult}
-import com.indeed.dataengineering.GenericDaemon.{conf, s3}
+import com.indeed.dataengineering.GenericDaemon.s3
+import com.indeed.dataengineering.LoadConfig.conf
 import org.apache.log4j.Level
 
 import scala.collection.mutable.ArrayBuffer

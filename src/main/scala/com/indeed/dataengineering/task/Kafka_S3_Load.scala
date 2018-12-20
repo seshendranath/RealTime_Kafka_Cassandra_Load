@@ -9,7 +9,8 @@ import com.datastax.spark.connector.cql.CassandraConnector
 import org.apache.spark.sql._
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.functions.{log => _, _}
-import com.indeed.dataengineering.AnalyticsTaskApp._
+import com.indeed.dataengineering.AnalyticsTaskApp.spark
+import com.indeed.dataengineering.LoadConfig.conf
 import com.indeed.dataengineering.utilities.{Logging, SqlJDBC}
 import com.indeed.dataengineering.utilities.SparkUtils._
 import com.indeed.dataengineering.utilities.Utils._
@@ -44,7 +45,7 @@ class Kafka_S3_Load extends Logging {
       log.info(s"Bool String for $tbl: ${transformString.mkString(",")}")
 
       log.info(s"Extracting Schema for table $tbl")
-      val js = StructType(res(tbl).columns.map(c => StructField(c.name, postgresqlToSparkDataType(c.dataType))))
+      val js = StructType(res(tbl).columns.map(c => StructField(columnNameTransformations(c.name), postgresqlToSparkDataType(c.dataType))))
       log.info(s"Extracted Schema for $tbl: $js")
 
       log.info(s"Extracting Old Primary Key Schema for table $tbl")

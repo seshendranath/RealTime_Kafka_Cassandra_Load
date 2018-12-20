@@ -4,7 +4,7 @@ package com.indeed.dataengineering.utilities
   * Created by aguyyala on 11/09/17.
   */
 
-import com.indeed.dataengineering.GenericDaemon.conf
+import com.indeed.dataengineering.LoadConfig.conf
 import scala.collection.mutable
 import com.datastax.driver.core.utils.UUIDs
 

@@ -8,7 +8,8 @@ package com.indeed.dataengineering.task
 
 // import com.datastax.driver.core.BatchStatement
 // import com.datastax.driver.core.BatchStatement.Type
-import com.indeed.dataengineering.AnalyticsTaskApp._
+import com.indeed.dataengineering.AnalyticsTaskApp.spark
+import com.indeed.dataengineering.LoadConfig.conf
 import org.apache.spark.sql._
 import com.indeed.dataengineering.models._
 import com.datastax.spark.connector.cql.CassandraConnector

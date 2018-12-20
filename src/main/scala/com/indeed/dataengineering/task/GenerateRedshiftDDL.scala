@@ -1,6 +1,6 @@
 package com.indeed.dataengineering.task
 
-import com.indeed.dataengineering.GenericDaemon.conf
+import com.indeed.dataengineering.LoadConfig.conf
 import com.indeed.dataengineering.utilities.{Logging, SqlJDBC}
 import com.indeed.dataengineering.utilities.Utils._
 import com.indeed.dataengineering.utilities.SqlUtils._

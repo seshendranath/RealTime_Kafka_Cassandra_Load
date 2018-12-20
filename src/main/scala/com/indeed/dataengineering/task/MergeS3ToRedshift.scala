@@ -9,7 +9,8 @@ package com.indeed.dataengineering.task
 import java.util.concurrent.Executors
 
 import com.github.nscala_time.time.Imports.DateTime
-import com.indeed.dataengineering.GenericDaemon.{conf, s3}
+import com.indeed.dataengineering.GenericDaemon.s3
+import com.indeed.dataengineering.LoadConfig.conf
 import com.indeed.dataengineering.models.EravanaMetadata
 import com.indeed.dataengineering.utilities.{JobControl, Logging, SqlJDBC}
 import com.indeed.dataengineering.utilities.S3Utils._

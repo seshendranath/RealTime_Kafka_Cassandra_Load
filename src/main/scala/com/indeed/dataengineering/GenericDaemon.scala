@@ -13,7 +13,7 @@ import com.amazonaws.auth.AWSStaticCredentialsProvider
 import com.amazonaws.services.s3.AmazonS3ClientBuilder
 import com.amazonaws.auth.BasicAWSCredentials
 import com.indeed.dataengineering.utilities.Logging
-import config.AnalyticsTaskConfig
+//import config.AnalyticsTaskConfig
 
 import scala.io.Source
 
@@ -23,7 +23,7 @@ import scala.io.Source
  */
 object GenericDaemon extends App with Logging {
 
-  lazy val conf: Map[String, String] = AnalyticsTaskConfig.parseCmdLineArguments(args)
+  val conf: Map[String, String] = LoadConfig(args)
 
   lazy val s3 = if (conf("env") == "dev") {
     val awsCreds = new BasicAWSCredentials(conf("accessKey"), conf("secretKey"))

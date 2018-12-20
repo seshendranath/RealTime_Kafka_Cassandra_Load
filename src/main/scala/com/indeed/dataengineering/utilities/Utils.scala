@@ -5,7 +5,7 @@ package com.indeed.dataengineering.utilities
   */
 
 
-import com.indeed.dataengineering.GenericDaemon.conf
+import com.indeed.dataengineering.LoadConfig.conf
 import com.indeed.dataengineering.models.Column
 import org.apache.log4j.Level
 
@@ -118,11 +118,16 @@ object Utils extends Logging {
 
   def transformations(c: Column): String = {
     if (c.dataType == "BOOLEAN") {
-      s"CAST(${c.name} AS Boolean) AS ${c.name}"
+      if (c.name.toLowerCase == "is_deleted_from_source") s"CAST(is_deleted AS Boolean) AS ${c.name}" else s"CAST(${c.name} AS Boolean) AS ${c.name}"
     } else if (c.dataType == "TIMESTAMP") {
       s"FROM_UTC_TIMESTAMP(${c.name}, 'CST') AS ${c.name}"
     } else {
       c.name
     }
   }
+
+  def columnNameTransformations(c: String): String = {
+    if (c.toLowerCase == "is_deleted_from_source") "is_deleted" else c
+  }
+
 }

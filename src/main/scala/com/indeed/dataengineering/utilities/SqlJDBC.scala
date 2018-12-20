@@ -9,7 +9,7 @@ import java.sql.ResultSet
 import javax.sql.rowset.CachedRowSet
 import com.sun.rowset.CachedRowSetImpl
 import java.sql.DriverManager
-import com.indeed.dataengineering.GenericDaemon.conf
+import com.indeed.dataengineering.LoadConfig.conf
 import org.apache.log4j.Level
 
 

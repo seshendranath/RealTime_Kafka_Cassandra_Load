@@ -6,12 +6,13 @@ package com.indeed.dataengineering.task
   */
 
 
-import com.indeed.dataengineering.AnalyticsTaskApp._
+import com.indeed.dataengineering.AnalyticsTaskApp.spark
+import com.indeed.dataengineering.LoadConfig.conf
 import org.apache.spark.sql._
 import com.indeed.dataengineering.models._
 import com.datastax.spark.connector.cql.CassandraConnector
 import com.indeed.dataengineering.utilities.Logging
-import com.indeed.dataengineering.utilities.SqlUtils.getMetaQueries
+//import com.indeed.dataengineering.utilities.SqlUtils.getMetaQueries
 import org.apache.spark.sql.functions.{log => _, _}
 
 
@@ -25,7 +26,7 @@ class SalesSummary_Load_Test  extends Logging {
 
     val checkpointDir = conf("checkpointBaseLoc") + this.getClass.getSimpleName
 
-    val className = this.getClass.getSimpleName
+//    val className = this.getClass.getSimpleName
 
     log.info("Setting spark.cassandra.connection.host")
     spark.conf.set("spark.cassandra.connection.host", conf("cassandra.host"))
@@ -37,15 +38,15 @@ class SalesSummary_Load_Test  extends Logging {
 
       def process(value: Sales_Revenue_Summary): Unit = {
 
-        val metaQuery = getMetaQueries(className, value.db, value.tbl, value.topic, value.partition, value.offset)
+//        val metaQuery = getMetaQueries(className, value.db, value.tbl, value.topic, value.partition, value.offset)
 
-        val total_revenue = value.sales_revenue + value.agency_revenue + value.strategic_revenue + value.sales_new_revenue
+//        val total_revenue = value.sales_revenue + value.agency_revenue + value.strategic_revenue + value.sales_new_revenue
 //        val cQuery1 = s"update adcentraldb.sales_revenue_summary_by_user_quarter_test SET total_revenue = total_revenue + $total_revenue, sales_revenue = sales_revenue + ${value.sales_revenue}, agency_revenue = agency_revenue + ${value.agency_revenue}, strategic_revenue = strategic_revenue + ${value.strategic_revenue}, sales_new_revenue = sales_new_revenue + ${value.sales_new_revenue}, new_parent_revenue = new_parent_revenue + ${value.new_parent_revenue}  WHERE year = ${value.year} AND quarter = ${value.quarter} AND user_id = ${value.user_id}"
 //        val cQuery2 = s"update adcentraldb.sales_revenue_summary_by_quarter_test SET total_revenue = total_revenue + $total_revenue, sales_revenue = sales_revenue + ${value.sales_revenue}, agency_revenue = agency_revenue + ${value.agency_revenue}, strategic_revenue = strategic_revenue + ${value.strategic_revenue}, sales_new_revenue = sales_new_revenue + ${value.sales_new_revenue}, new_parent_revenue = new_parent_revenue + ${value.new_parent_revenue} WHERE year = ${value.year} AND quarter = ${value.quarter}"
 //        val cQuery3 = s"SELECT total_revenue FROM adcentraldb.sales_revenue_summary_by_user_quarter WHERE year = ${value.year} AND quarter = ${value.quarter} AND user_id = ${value.user_id}"
 //        val cQuery4 = s"SELECT total_revenue FROM adcentraldb.sales_revenue_summary_by_quarter WHERE year = ${value.year} AND quarter = ${value.quarter}"
 
-        connector.withSessionDo { session =>
+//        connector.withSessionDo { session =>
 //          session.execute(cQuery1)
 //          session.execute(cQuery2)
 //          session.execute(metaQuery)
@@ -57,7 +58,7 @@ class SalesSummary_Load_Test  extends Logging {
 //          val total_revenue_quarter = if (cRow2 != null && cRow2.getObject("total_revenue") != null) BigInt(cRow2.getObject("total_revenue").toString) else BigInt(0)
 //          session.execute(s"update adcentraldb.sales_revenue_quota_summary_by_quarter SET total_revenue = $total_revenue_quarter WHERE year = ${value.year} AND quarter = ${value.quarter}")
 
-        }
+//        }
       }
 
       def close(errorOrNull: Throwable): Unit = {}

@@ -14,7 +14,7 @@ import org.apache.hadoop.fs.{FileContext, FileSystem}
 import org.apache.hadoop.hive.conf.HiveConf
 import org.apache.hadoop.hive.metastore.HiveMetaStoreClient
 import org.apache.spark.sql.SparkSession
-import config.AnalyticsTaskConfig
+//import config.AnalyticsTaskConfig
 
 import scala.io.Source
 
@@ -25,7 +25,7 @@ import scala.io.Source
 object AnalyticsTaskApp extends App with Logging {
 
   lazy val spark: SparkSession = getSparkSession
-  lazy val conf: Map[String, String] = AnalyticsTaskConfig.parseCmdLineArguments(args)
+  val conf: Map[String, String] = LoadConfig(args)
   conf.foreach { case (k, v) => spark.conf.set(k, v) }
   //	setPropertiesFromGit(spark)
 

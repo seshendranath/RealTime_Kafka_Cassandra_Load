@@ -1,7 +1,8 @@
 package com.indeed.dataengineering.task
 
 import org.apache.spark.sql._
-import com.indeed.dataengineering.AnalyticsTaskApp._
+import com.indeed.dataengineering.AnalyticsTaskApp.spark
+import com.indeed.dataengineering.LoadConfig.conf
 import com.datastax.driver.core._
 import com.indeed.dataengineering.utilities.Logging
 

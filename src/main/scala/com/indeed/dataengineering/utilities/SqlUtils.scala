@@ -6,7 +6,7 @@ package com.indeed.dataengineering.utilities
 
 
 import com.github.nscala_time.time.Imports.DateTime
-import com.indeed.dataengineering.GenericDaemon.conf
+import com.indeed.dataengineering.LoadConfig.conf
 import com.indeed.dataengineering.models.{Column, EravanaMetadata}
 import com.indeed.dataengineering.utilities.Utils.redshiftKeywords
 import org.apache.log4j.Level

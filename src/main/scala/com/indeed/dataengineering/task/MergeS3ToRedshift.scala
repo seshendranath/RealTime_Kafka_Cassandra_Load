@@ -6,6 +6,7 @@ package com.indeed.dataengineering.task
   */
 
 
+import java.sql.SQLException
 import java.util.concurrent.Executors
 
 import com.github.nscala_time.time.Imports.DateTime
@@ -55,32 +56,40 @@ class MergeS3ToRedshift extends Logging {
     val executionContext = ExecutionContext.fromExecutorService(executorService)
 
     // TODO: Handle SIGTERM/SIGINT to exit gracefully
-    try {
-      while (true) {
+    def runJob(retry_cnt: Int = 0): Unit = {
+      var retry_cnt_mutable = retry_cnt
+      try {
+        while (true) {
 
-        log.info(s"Starting...")
+          log.info(s"Starting...")
 
-        if (conf.getOrElse("runSequentially", "false").toBoolean) {
-          whitelistedTables.foreach(tbl => process(tbl))
-        } else {
-          val res = go(executionContext, whitelistedTables)
+          if (conf.getOrElse("runSequentially", "false").toBoolean) {
+            whitelistedTables.foreach(tbl => process(tbl))
+          } else {
+            val res = go(executionContext, whitelistedTables)
 
-          Await.result(waitAll(executionContext, res), scala.concurrent.duration.Duration.Inf).foreach {
-            case Success(_) =>
-            case Failure(e) => throw e
+            Await.result(waitAll(executionContext, res), scala.concurrent.duration.Duration.Inf).foreach {
+              case Success(_) =>
+              case Failure(e) => throw e
+            }
           }
-        }
 
-        log.info(s"Sleeping for $runInterval minutes...")
-        Thread.sleep(runInterval * 60 * 1000)
+          log.info(s"Sleeping for $runInterval minutes...")
+          Thread.sleep(runInterval * 60 * 1000)
+          retry_cnt_mutable = 0
+        }
+      } catch {
+        // Amazon 500150 error code - Error setting/closing connection: Connection refused
+        case e: SQLException => if (e.getErrorCode == 500150 && retry_cnt_mutable < 3) runJob(retry_cnt_mutable + 1) else throw e
+        case e: Exception => throw e
+      } finally {
+        log.info("Shutting Down Executor Service and Execution Context")
+        executorService.shutdown()
+        executionContext.shutdown()
       }
-    } catch {
-      case e: Exception => throw e
-    } finally {
-      log.info("Shutting Down Executor Service and Execution Context")
-      executorService.shutdown()
-      executionContext.shutdown()
     }
+
+    runJob()
 
   }
 

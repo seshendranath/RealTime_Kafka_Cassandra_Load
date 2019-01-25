@@ -22,6 +22,7 @@ import org.apache.log4j.Level
 import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.util.{Failure, Success}
 
+import com.amazonaws.services.s3.model.AmazonS3Exception
 
 class MergeS3ToRedshift extends Logging {
 
@@ -80,7 +81,14 @@ class MergeS3ToRedshift extends Logging {
         }
       } catch {
         // Amazon 500150 error code - Error setting/closing connection: Connection refused
-        case e: SQLException => if (e.getErrorCode == 500150 && retry_cnt_mutable < 3) runJob(retry_cnt_mutable + 1) else throw e
+        case e: SQLException =>
+          log.error(e.printStackTrace())
+          if (e.getErrorCode == 500150 && retry_cnt_mutable < 3) runJob(retry_cnt_mutable + 1) else throw e
+
+        case e: AmazonS3Exception =>
+          log.error(e.printStackTrace())
+          if (retry_cnt_mutable < 3) runJob(retry_cnt_mutable + 1) else throw e
+
         case e: Exception => throw e
       } finally {
         log.info("Shutting Down Executor Service and Execution Context")

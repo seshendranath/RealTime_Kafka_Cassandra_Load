@@ -83,11 +83,15 @@ class MergeS3ToRedshift extends Logging {
         // Amazon 500150 error code - Error setting/closing connection: Connection refused
         case e: SQLException =>
           log.error(e.printStackTrace())
-          if (e.getErrorCode == 500150 && retry_cnt_mutable < 3) runJob(retry_cnt_mutable + 1) else throw e
+          log.info(s"Sleeping for $runInterval minutes... and retrying...")
+          Thread.sleep(runInterval * 60 * 1000)
+          if (e.getErrorCode == 500150 && retry_cnt_mutable < 5) runJob(retry_cnt_mutable + 1) else throw e
 
         case e: AmazonS3Exception =>
           log.error(e.printStackTrace())
-          if (retry_cnt_mutable < 3) runJob(retry_cnt_mutable + 1) else throw e
+          log.info(s"Sleeping for $runInterval minutes... and retrying...")
+          Thread.sleep(runInterval * 60 * 1000)
+          if (retry_cnt_mutable < 5) runJob(retry_cnt_mutable + 1) else throw e
 
         case e: Exception => throw e
       } finally {

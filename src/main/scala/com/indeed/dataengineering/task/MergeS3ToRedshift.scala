@@ -81,17 +81,23 @@ class MergeS3ToRedshift extends Logging {
         }
       } catch {
         // Amazon 500150 error code - Error setting/closing connection: Connection refused
+        // Amazon 11380 error code -  Null pointer exception in PGClient.startSession
+        // Amazon 600001 - The server closed the connection
         case e: SQLException =>
-          log.error(e.printStackTrace())
-          log.info(s"Sleeping for $runInterval minutes... and retrying...")
-          Thread.sleep(runInterval * 60 * 1000)
-          if (e.getErrorCode == 500150 && retry_cnt_mutable < 5) runJob(retry_cnt_mutable + 1) else throw e
+          if ((e.getErrorCode == 500150 || e.getErrorCode == 11380 || e.getErrorCode == 600001) && retry_cnt_mutable < 5) {
+            log.error(e.printStackTrace())
+            log.info(s"Sleeping for $runInterval minutes... and retrying...")
+            Thread.sleep(runInterval * 60 * 1000)
+            runJob(retry_cnt_mutable + 1)
+          } else throw e
 
         case e: AmazonS3Exception =>
-          log.error(e.printStackTrace())
-          log.info(s"Sleeping for $runInterval minutes... and retrying...")
-          Thread.sleep(runInterval * 60 * 1000)
-          if (retry_cnt_mutable < 5) runJob(retry_cnt_mutable + 1) else throw e
+          if (retry_cnt_mutable < 5) {
+            log.error(e.printStackTrace())
+            log.info(s"Sleeping for $runInterval minutes... and retrying...")
+            Thread.sleep(runInterval * 60 * 1000)
+            runJob(retry_cnt_mutable + 1)
+          } else throw e
 
         case e: Exception => throw e
       } finally {

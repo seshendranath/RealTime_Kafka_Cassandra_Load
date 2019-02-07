@@ -62,7 +62,7 @@ class Kafka_S3_Load extends Logging {
       val finalDf = df1.union(df2)
 
       log.info(s"Starting Stream for table $tbl")
-      val dfQuery = finalDf.writeStream.format(conf("targetFormat")).option("checkpointLocation", s"${conf("s3Uri")}${conf("s3Bucket")}/${conf("baseLoc")}/checkpoint/$tbl/").option("path", s"${conf("s3Uri")}${conf("s3Bucket")}/${conf("baseLoc")}/$tbl").trigger(Trigger.ProcessingTime(s"${conf.getOrElse("runInterval", "5")} minutes")).partitionBy("dt", "hr").start()
+      val dfQuery = finalDf.writeStream.format(conf("targetFormat")).option("checkpointLocation", s"${conf("s3aUri")}${conf("s3Bucket")}/${conf("baseLoc")}/checkpoint/$tbl/").option("path", s"${conf("s3aUri")}${conf("s3Bucket")}/${conf("baseLoc")}/$tbl").trigger(Trigger.ProcessingTime(s"${conf.getOrElse("runInterval", "5")} minutes")).partitionBy("dt", "hr").start()
       log.info(s"Query id for $tbl: ${dfQuery.id}")
     }
 
